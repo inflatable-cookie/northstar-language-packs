@@ -1,6 +1,6 @@
 # 002 — Repair Installed TypeScript Invocation
 
-Status: complete; awaiting exact-head review
+Status: complete; merged through PR 2 as `d18dc33b`
 Owner: repo maintainers
 Updated: 2026-09-02
 Upstream finding: Northstar PR 23 exact-head review at `057dd2841c1e6d81abb0955fe6d8a3572c173638`
@@ -109,6 +109,5 @@ Superseded identities remain `09ef174` /
 
 ## Next Task
 
-Stop for orchestrator exact-head review of the source PR. Do not merge, pin,
-or start Jetstream work from this card. Northstar PR 23 stays open until this
-replacement source merges.
+Card 003 owns the later standalone agent-facing adapter defect. Do not reopen
+setup/record invocation from this card.

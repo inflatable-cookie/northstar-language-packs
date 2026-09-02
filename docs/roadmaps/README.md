@@ -7,5 +7,5 @@
 
 ## Next Task
 
-Stop for exact-head review of `g01.001/002`. Northstar registry promotion
-remains blocked on the replacement identity.
+Execute ready card `g01.001/003`. Keep `g01.002/004` blocked until Northstar
+repins the accepted replacement identity.

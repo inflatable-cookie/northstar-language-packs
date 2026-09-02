@@ -12,6 +12,6 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Execute card-002 exact-head review, then pin the replacement TypeScript
-package identity in Northstar. Do not start registry promotion from this
-repository.
+Execute card 003's standalone TypeScript adapter repair. After exact-head
+acceptance, return its immutable identity to Northstar for registry repinning.
+Do not start Rust card 004 yet.

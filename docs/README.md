@@ -14,5 +14,5 @@ owned package work.
 
 ## Next Task
 
-Stop for exact-head review of the installed TypeScript setup/record repair.
-Northstar registry promotion remains blocked on the replacement identity.
+Execute the ready standalone TypeScript adapter repair in card 003. Rust source
+card 004 remains blocked until Northstar repins the replacement identity.

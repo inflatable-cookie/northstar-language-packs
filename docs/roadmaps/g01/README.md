@@ -4,20 +4,20 @@
 
 | Goal | State | Governing refs | Next milestone |
 | --- | --- | --- | --- |
-| Establish independent official package source and immutable release evidence. | active | `docs/architecture/system-architecture.md`, `docs/contracts/001-working-rules.md` | `g01.001` |
-| Add later language packages without widening every installed payload. | planned | accepted TypeScript canary | post-canary planning |
+| Establish independent official package source and immutable release evidence. | active | `docs/architecture/system-architecture.md`, `docs/contracts/001-working-rules.md` | `g01.001/003` standalone adapter repair |
+| Add later language packages without widening every installed payload. | planned | Northstar `g02.048/119` | `g01.002` after the adapter repair and repin |
 
 ## Active Milestone
 
-- `001-typescript-package-source.md` — active; card 002 source candidate
-  awaiting exact-head review
+- `001-typescript-package-source.md` — active; card 003 ready
 
 ## Milestones
 
-- `g01.001` — TypeScript package source canary (card 001 complete; card 002
-  source candidate awaiting review)
+- `g01.001` — TypeScript package source canary (cards 001-002 complete; card
+  003 standalone adapter repair ready)
+- `g01.002` — Rust package source (card 004 planned, not ready)
 
 ## Next Task
 
-Stop for exact-head review of the card-002 installed-invocation repair.
-Northstar registry promotion remains blocked on the replacement identity.
+Execute card 003 and stop at a reviewable source PR. Card 004 remains blocked
+until that replacement identity is repinned by Northstar card 121.
