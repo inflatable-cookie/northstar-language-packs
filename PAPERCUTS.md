@@ -7,6 +7,16 @@ continue the scoped task.
 
 <!-- Newest first. Never include secrets. -->
 
+### [ ] Working-tree `git diff --check` misses new-file EOF blanks — 2026-09-02
+- Friction: `git diff --check` on a clean worktree is empty; the required
+  check is `git diff --check origin/main...HEAD`, which reports trailing
+  blank lines on newly added files.
+- Impact: closeout claimed a clean diff-check while the base-to-head range
+  failed on two copied JSON files.
+- Possible fix: make package QA or the card validation spell the base-to-head
+  form, and strip extra EOF blanks on extraction.
+- Surface: worker closeout validation; copied JSON package files.
+
 ### [ ] Rhai functions cannot read Effigy catalog_root constant — 2026-09-02
 - Friction: `catalog_root` and `repo_root` are script-scope constants; a
   function that names them throws `Variable not found`.

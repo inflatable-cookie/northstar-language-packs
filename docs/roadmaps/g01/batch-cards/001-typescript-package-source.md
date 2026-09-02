@@ -57,7 +57,7 @@ merge the PR.
 - direct self-check from a staged package root;
 - pinned source-to-package and source-to-staged parity;
 - all review-oracle counterexamples;
-- `git diff --check`.
+- `git diff --check origin/main...HEAD`.
 
 ## Stop Conditions
 
@@ -73,14 +73,17 @@ merge the PR.
 Worker `worker/build-typescript-package-source` in Paseo worktree
 `/Users/tom/.paseo/worktrees/0z9augi8/build-typescript-package-source`
 relocated the pinned 17-file payload from Northstar `3f360be` into the 20-file
-package. Fourteen surfaces are byte-exact. The three Rhai scripts now resolve
-assets from Effigy `catalog_root` and keep `repo_root` as the consumer target.
+package. Twelve surfaces are byte-exact. Two JSON files
+(`audit-manifest.schema.json`, `strict-audit.json`) are meaning-exact after
+stripping a pinned extra EOF blank line so `git diff --check origin/main...HEAD`
+is green. The three Rhai scripts resolve assets from Effigy `catalog_root` and
+keep `repo_root` as the consumer target.
 
 Source-list digest method: SHA-256 of the GNU `sha256sum` listing
 (`<file-sha256>  <original-path>\n`) over the 17 pinned paths. Reproduced
 digest `7e3ff26cd9319743fee5b0433d79b0cea6515347aa5780f68f2fcbb6eb664d26`.
 Package-tree digest
-`sha256:b4844ecabdd6a4e21cd33d4da9c94eb18fb8982996e32e92f06be07c08cd0337`.
+`sha256:0fcd5c58296f168895b66f2472621d49761f7786ea2ad1ebeefb801040967d6b`.
 Manifest digest
 `sha256:ed95883c428ef43f0f02d38d60bf8d50e6e29313f5751c1b2a5744157a5b5362`.
 

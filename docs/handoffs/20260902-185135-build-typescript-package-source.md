@@ -84,7 +84,8 @@ fresh Jetstream canary.
   fallback
 - **Required validation:** `effigy qa`, `effigy qa:docs`, direct staged-package
   self-check, pinned 17-file source parity, exact 20-file source/staged
-  inventory, all five local oracle counterexamples, and `git diff --check`
+  inventory, all five local oracle counterexamples, and
+  `git diff --check origin/main...HEAD`
 - **PR base/head:** `main` <- `worker/build-typescript-package-source`
 - **PR URL:** https://github.com/inflatable-cookie/northstar-language-packs/pull/1
 - **Review state:** awaiting orchestrator exact-head review
@@ -139,7 +140,7 @@ fresh Jetstream canary.
 - **Identities:** source-list digest
   `7e3ff26cd9319743fee5b0433d79b0cea6515347aa5780f68f2fcbb6eb664d26`;
   package-tree digest
-  `sha256:b4844ecabdd6a4e21cd33d4da9c94eb18fb8982996e32e92f06be07c08cd0337`;
+  `sha256:0fcd5c58296f168895b66f2472621d49761f7786ea2ad1ebeefb801040967d6b`;
   manifest digest
   `sha256:ed95883c428ef43f0f02d38d60bf8d50e6e29313f5751c1b2a5744157a5b5362`.
 - **Report after:** package shape plus source/staged parity is complete, or an
