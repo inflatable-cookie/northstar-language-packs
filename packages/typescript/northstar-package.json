@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "package_id": "@northstar/typescript-quality",
+  "version": "0.1.0",
+  "kind": "language-quality",
+  "compatible_core_range": ">=0.2.0 <1.0.0",
+  "supported_languages": [
+    "typescript"
+  ],
+  "supported_overlays": [
+    "base",
+    "svelte",
+    "sveltekit"
+  ],
+  "available_workflows": [
+    "explicit_audit_repair"
+  ],
+  "entrypoints": {
+    "explicit_audit_repair": "references/modes/typescript-quality-audit.md"
+  },
+  "runtime_capabilities": {
+    "required_commands": [
+      "effigy",
+      "sh"
+    ],
+    "optional_effigy_selectors": [
+      "check:typescript-quality",
+      "typescript-quality:setup",
+      "typescript-quality:record",
+      "test:typescript-quality-setup",
+      "test:typescript-quality-recorder"
+    ]
+  },
+  "self_check": {
+    "entrypoint": "scripts/self-check.sh",
+    "validated_profile_versions": [
+      "1.0.0"
+    ],
+    "validated_schema_versions": [
+      "1.0.0"
+    ],
+    "invocation": {
+      "type": "direct"
+    }
+  },
+  "evidence_providers": []
+}
