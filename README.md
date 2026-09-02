@@ -21,5 +21,6 @@ effigy qa
 ## Current Focus
 
 The TypeScript package source is in `packages/typescript` and waiting
-exact-head review. See `docs/roadmaps/README.md`.
+exact-head review of the installed-invocation repair. See
+`docs/roadmaps/README.md`.
 

@@ -7,5 +7,5 @@
 
 ## Next Task
 
-Execute `g01.001/002` to repair installed TypeScript task invocation before
-Northstar registry promotion.
+Stop for exact-head review of `g01.001/002`. Northstar registry promotion
+remains blocked on the replacement identity.

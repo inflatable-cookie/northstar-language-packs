@@ -1,6 +1,6 @@
 # 002 — Repair Installed TypeScript Invocation
 
-Status: ready
+Status: complete; awaiting exact-head review
 Owner: repo maintainers
 Updated: 2026-09-02
 Upstream finding: Northstar PR 23 exact-head review at `057dd2841c1e6d81abb0955fe6d8a3572c173638`
@@ -44,25 +44,25 @@ rule meaning, evidence schema, or consumer policy. Do not merge.
 
 ## Acceptance
 
-- [ ] the package mode and recording contract contain no embedded
+- [x] the package mode and recording contract contain no embedded
   `northstar/typescript-quality:*` invocation;
-- [ ] installed setup runs through `effigy skill run --path <package-root>`
+- [x] installed setup runs through `effigy skill run --path <package-root>`
   with the consumer supplied separately and applies package-owned assets;
-- [ ] installed recorder operations receive their relayed arguments and bind
+- [x] installed recorder operations receive their relayed arguments and bind
   the package-owned catalogue while writing only to the consumer target;
-- [ ] a consumer decoy embedded catalogue cannot win task-source resolution;
-- [ ] the old documented command and unnormalized-argument variants are
+- [x] a consumer decoy embedded catalogue cannot win task-source resolution;
+- [x] the old documented command and unnormalized-argument variants are
   explicit negative fixtures;
-- [ ] package-local QA, direct self-check, installed operational proof,
+- [x] package-local QA, direct self-check, installed operational proof,
   source/staged parity, repository QA, and
   `git diff --check origin/main...HEAD` pass;
-- [ ] replacement commit and package identities are recorded honestly.
+- [x] replacement commit and package identities are recorded honestly.
 
 ## Review Oracle
 
 | Invariant | Counterexample | Expected stop | Proof |
 | --- | --- | --- | --- |
-| Installed source owns execution. | Setup resolves the `northstar` catalogue or a consumer decoy. | Fail before mutation. | Materialized package + decoy consumer run. |
+| Installed source owns execution. | Setup resolves the `northstar` catalogue or a consumer decoy. | Fail before mutation. | Materialized package + decoy consumer run. See `docs/logs/2026-09/02-202944-repair-installed-typescript-invocation.md`. |
 | Relay arguments survive. | Setup/record see `--` as the operation. | Usage guard must not fire for a valid skill-run relay. | Exact public command transcript. |
 | Consumer stays the target. | Package task writes policy/evidence below its own installed root. | Attribution/identity proof fails. | Before/after package and consumer inventories. |
 | Policy is unchanged. | Repair changes rule, overlay, workflow, schema, or template meaning. | Parity fails before PR. | Pinned semantic/source comparison. |
@@ -77,7 +77,38 @@ rule meaning, evidence schema, or consumer policy. Do not merge.
 - a new package version or protocol decision is required;
 - validation changes the plan.
 
+## Completion Notes
+
+Worker `worker/repair-installed-typescript-invocation` in Paseo worktree
+`/Users/tom/.paseo/worktrees/0z9augi8/repair-installed-typescript-invocation`
+reproduced both review failures from the materialized `origin/main` package,
+then repaired invocation only.
+
+Public command:
+
+```text
+effigy skill run --path <installed-package-root> typescript-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>
+effigy skill run --path <installed-package-root> typescript-quality:record --repo <consumer-root> -- <operation> ...
+```
+
+Setup and recorder strip one leading `--` before dispatch, matching
+Northstar's `paseo-worktree.rhai` pattern. `scripts/prove-installed-invocation.sh`
+runs those commands against a decoy consumer whose catalogue alias is
+`northstar`. Package version remains `0.1.0`.
+
+Replacement identities:
+
+- package-tree digest
+  `sha256:767671328a32f45610aba4462df7b3bdc87c62fd0ab2af8e6aee866aa15a334a`
+- manifest digest
+  `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
+
+Superseded identities remain `09ef174` /
+`sha256:0fcd5c58296f168895b66f2472621d49761f7786ea2ad1ebeefb801040967d6b` /
+`sha256:ed95883c428ef43f0f02d38d60bf8d50e6e29313f5751c1b2a5744157a5b5362`.
+
 ## Next Task
 
-Implement in one package-source PR and stop for orchestrator exact-head review.
-Northstar PR 23 remains open and blocked until this replacement source merges.
+Stop for orchestrator exact-head review of the source PR. Do not merge, pin,
+or start Jetstream work from this card. Northstar PR 23 stays open until this
+replacement source merges.

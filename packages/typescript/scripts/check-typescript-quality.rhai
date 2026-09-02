@@ -300,6 +300,7 @@ fn expected_package_files() {
         "references/language-quality/typescript/strict-audit.json",
         "references/modes/typescript-quality-audit.md",
         "scripts/check-typescript-quality.rhai",
+        "scripts/prove-installed-invocation.sh",
         "scripts/self-check.sh",
         "scripts/typescript-quality-recorder.rhai",
         "scripts/typescript-quality-setup.rhai",
@@ -323,7 +324,7 @@ fn validate_inventory(package_root) {
     for relative in expected {
         require(files.contains(relative), "missing package file: " + relative);
     }
-    require(files.len() == 20, "package must contain exactly 20 files");
+    require(files.len() == 21, "package must contain exactly 21 files");
 }
 
 fn validate_runtime_surface(package_root) {
@@ -348,6 +349,17 @@ fn validate_runtime_surface(package_root) {
         "TypeScript audit mode lacks mutation and preservation boundaries");
     require(recording.contains("compiler|framework|lint|test") && recording.contains("failure_stage"),
         "recording contract lacks typed tool evidence");
+    require(!mode.contains("northstar/typescript-quality:") &&
+        !recording.contains("northstar/typescript-quality:"),
+        "installed invocation still names the embedded Northstar catalogue");
+    require(mode.contains("effigy skill run --path") && mode.contains("typescript-quality:setup") &&
+        mode.contains("--repo <consumer-root>"),
+        "TypeScript audit mode lacks installed package setup invocation");
+    require(recording.contains("effigy skill run --path") && recording.contains("typescript-quality:record") &&
+        recording.contains("--repo <consumer-root>"),
+        "recording contract lacks installed package recorder invocation");
+    require(setup.contains("task_args[0] == \"--\"") && recorder.contains("task_args[0] == \"--\""),
+        "package scripts do not normalize the Effigy relay sentinel");
     require(adapter.contains("Thin explicit entrypoint") && !adapter.contains("## Procedure"),
         "TypeScript audit adapter is not thin");
     require(adapter.contains("Do not activate from ordinary coding"),
@@ -356,7 +368,8 @@ fn validate_runtime_surface(package_root) {
         "TypeScript audit adapter allows implicit invocation");
     require(catalog.contains("check:typescript-quality") && catalog.contains("typescript-quality:setup") &&
         catalog.contains("typescript-quality:record") && catalog.contains("test:typescript-quality-setup") &&
-        catalog.contains("test:typescript-quality-recorder"), "skill-local TypeScript selectors are incomplete");
+        catalog.contains("test:typescript-quality-recorder") &&
+        catalog.contains("test:typescript-quality-installed-route"), "skill-local TypeScript selectors are incomplete");
     require(!setup.contains("process::") && !setup.contains("command::"),
         "TypeScript setup can launch a subprocess");
     require(!recorder.contains("process::") && !recorder.contains("command::"),
@@ -448,6 +461,16 @@ fn test_self_check_wrapper(package_root) {
     require(text.contains("effigy check:typescript-quality"),
         "self-check wrapper does not run the package-owned Effigy check");
 
+    let proof = path::join(package_root, "scripts/prove-installed-invocation.sh");
+    require(fs::is_file(proof), "installed-invocation proof is missing");
+    let proof_executable = process::run("/bin/test", ["-x", proof]);
+    require(proof_executable["success"], "installed-invocation proof is not executable");
+    let proof_text = fs::read_file(proof);
+    require(proof_text.contains("effigy skill run --path") &&
+        proof_text.contains("northstar/typescript-quality:setup") &&
+        proof_text.contains("DECOY-NORTHSTAR-SETUP-RAN"),
+        "installed-invocation proof does not exercise the public skill-run surface and negative fixtures");
+
     let missing_effigy = process::run(wrapper, [package_root], #{
         cwd: package_root,
         env: #{ PATH: "/usr/bin:/bin" },
@@ -499,4 +522,4 @@ test_self_check_wrapper(package_root);
 for filename in ["audit-manifest.schema.json", "audit-unit.schema.json", "audit-result.schema.json"] {
     validate_schema(payload_root, filename);
 }
-log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 20-file inventory, 8 catalogue/manifest negative paths, explicit audit only)");
+log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest negative paths, explicit audit only)");

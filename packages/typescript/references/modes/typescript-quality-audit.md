@@ -13,7 +13,7 @@ everyday authoring projection.
 1. Check the applicable marked activation block plus
    `docs/contracts/typescript-quality-profile.json` and deviations file. If any
    are missing, choose the narrowest package-owning scope and run
-   `effigy --repo <installed-northstar> northstar/typescript-quality:setup apply <absolute-target-root> <scope-directory>`.
+   `effigy skill run --path <installed-package-root> typescript-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>`.
    Setup discovers package ownership and overlays; it never installs packages.
 2. Require strict explicit-audit workflow. Resolve owned packages,
    unregistered candidates, exclusions, and Svelte version evidence. Apply the

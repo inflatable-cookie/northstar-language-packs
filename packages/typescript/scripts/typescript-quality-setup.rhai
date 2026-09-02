@@ -363,16 +363,27 @@ require(type_of(catalog_root) == "string" && catalog_root.len() > 0,
 require(fs::is_file(path::join(catalog_root, "northstar-package.json")),
     "package assets must resolve from catalog_root, not consumer repo_root");
 let northstar_skill_root = catalog_root;
-if args.len() == 1 && args[0] == "self-test" {
+let task_args = [];
+for argument in args {
+    task_args.push(argument);
+}
+if task_args.len() > 0 && task_args[0] == "--" {
+    let forwarded = [];
+    for index in 1..task_args.len() {
+        forwarded.push(task_args[index]);
+    }
+    task_args = forwarded;
+}
+if task_args.len() == 1 && task_args[0] == "self-test" {
     test_mixed_workspace(northstar_skill_root);
     test_rootless_packages(northstar_skill_root);
     test_setup_rejections(northstar_skill_root);
     test_consumer_decoy_ignored(northstar_skill_root);
     log("Northstar TypeScript quality setup self-test: OK (mixed workspace, rootless packages, overlays, preserve, idempotency, 3 negative paths)");
-} else if (args.len() == 2 || args.len() == 3) && args[0] == "apply" {
+} else if (task_args.len() == 2 || task_args.len() == 3) && task_args[0] == "apply" {
     let scope = ".";
-    if args.len() == 3 { scope = args[2]; }
-    apply_setup(northstar_skill_root, resolve_path(repo_root, args[1]), scope);
+    if task_args.len() == 3 { scope = task_args[2]; }
+    apply_setup(northstar_skill_root, resolve_path(repo_root, task_args[1]), scope);
 } else {
     throw("usage: typescript-quality:setup self-test | apply <target-root> [scope-directory]");
 }
