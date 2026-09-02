@@ -1,0 +1,22 @@
+{
+  "worktree": {
+    "setup": "effigy skill run --path \"${NORTHSTAR_SKILL_PATH:-$HOME/.agents/skills/northstar}\" paseo:worktree -- prepare ../northstar && effigy skill run --path \"${NORTHSTAR_SKILL_PATH:-$HOME/.agents/skills/northstar}\" paseo:worktree -- link",
+    "teardown": "effigy skill run --path \"${NORTHSTAR_SKILL_PATH:-$HOME/.agents/skills/northstar}\" paseo:worktree -- unlink"
+  },
+  "scripts": {
+    "qa": { "command": "effigy qa" },
+    "docs": { "command": "effigy qa:docs" }
+  },
+  "metadataGeneration": {
+    "branchName": {
+      "instructions": "Use worker/<short-kebab> for implementation lanes."
+    },
+    "commitMessage": {
+      "instructions": "Use a Conventional Commit with a short imperative subject."
+    },
+    "pullRequest": {
+      "instructions": "Lead with the package outcome, link governing docs, and include immutable identity, validation, and unresolved items. Worker lanes do not merge; an orchestrator may merge an accepted current head after required checks pass."
+    }
+  }
+}
+

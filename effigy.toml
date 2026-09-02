@@ -1,0 +1,31 @@
+[catalog]
+alias = "northstar-language-packs"
+
+[docs_policy.indexes.vision]
+file = "docs/vision/README.md"
+dir = "docs/vision"
+section = "Vision Artifacts"
+
+[tasks]
+"qa:docs:links" = "effigy docs check links"
+"qa:docs:index:vision" = "effigy docs check index --policy-index vision"
+"qa:docs:agent-defaults" = "effigy docs check forbidden AGENTS.md README.md docs/README.md --forbid '--repo .'"
+"qa:docs" = [
+  { task = "qa:docs:links" },
+  { task = "qa:docs:index:vision" },
+  { task = "qa:docs:agent-defaults" },
+]
+"qa:northstar:spine" = "effigy docs check paths README.md AGENTS.md CLAUDE.md CHANGELOG.md PAPERCUTS.md scripts/README.md docs/README.md docs/vision/README.md docs/architecture/README.md docs/architecture/system-architecture.md docs/contracts/README.md docs/contracts/contract-index.md docs/contracts/001-working-rules.md docs/roadmaps/README.md docs/roadmaps/generation-index.md docs/roadmaps/g01/README.md docs/logs/README.md docs/handoffs/README.md docs/triage/README.md docs/policy/internal-writing-style.md"
+"qa:northstar:agent-contract" = "effigy docs check contains AGENTS.md --require 'effigy tasks' --require 'effigy test --plan' --require 'docs/README.md' --require 'docs/roadmaps/README.md' --require 'docs/logs/README.md'"
+"qa:northstar:front-door" = "effigy docs check contains docs/README.md --require 'vision/README.md' --require 'architecture/README.md' --require 'contracts/README.md' --require 'roadmaps/README.md' --require 'logs/README.md'"
+"qa:northstar:headings" = "effigy docs check headings docs/vision/README.md --require-heading '## Current Vision'"
+"qa:northstar:roadmap-headings" = "effigy docs check headings docs/roadmaps/g01/README.md --require-heading '## Generation Runway' --require-heading '## Next Task'"
+"qa:northstar" = [
+  { task = "qa:northstar:spine" },
+  { task = "qa:northstar:agent-contract" },
+  { task = "qa:northstar:front-door" },
+  { task = "qa:northstar:headings" },
+  { task = "qa:northstar:roadmap-headings" },
+]
+health = [{ task = "qa:docs:agent-defaults" }]
+qa = [{ task = "qa:docs" }, { task = "qa:northstar" }]
