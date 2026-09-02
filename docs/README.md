@@ -14,5 +14,5 @@ owned package work.
 
 ## Next Task
 
-Await accepted exact-head review of the TypeScript source-package PR.
-
+Repair the installed TypeScript setup/record invocation under `g01.001/002`.
+Northstar registry promotion remains blocked on the replacement identity.

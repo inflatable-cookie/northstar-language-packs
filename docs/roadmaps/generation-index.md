@@ -12,5 +12,5 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Await accepted exact-head review of the TypeScript source PR.
-
+Execute `g01.001/002`: repair installed setup/record invocation and produce a
+replacement immutable package identity for Northstar registry promotion.

@@ -7,5 +7,5 @@
 
 ## Next Task
 
-Await accepted exact-head review of the TypeScript source-package PR.
-
+Execute `g01.001/002` to repair installed TypeScript task invocation before
+Northstar registry promotion.
