@@ -1,6 +1,6 @@
 # 001 — TypeScript Package Source
 
-Status: ready
+Status: complete
 Owner: repo maintainers
 Upstream authority: Northstar `g02.048/118` at
 `3f360be97759abf658867e062a30edc3b9c8c597`
@@ -18,5 +18,5 @@ Jetstream activation.
 
 ## Next Task
 
-Complete the source-package card, then stop at its accepted-review boundary.
-
+Await accepted exact-head review of the TypeScript source PR. Registry
+promotion stays serial on the merged immutable identity.

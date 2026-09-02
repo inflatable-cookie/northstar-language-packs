@@ -9,7 +9,7 @@
 
 ## Active Milestone
 
-- `001-typescript-package-source.md` — ready
+- `001-typescript-package-source.md` — complete; awaiting exact-head review
 
 ## Milestones
 
@@ -17,5 +17,5 @@
 
 ## Next Task
 
-Execute the ready card under `batch-cards/001-typescript-package-source.md`.
+Await accepted exact-head review of the TypeScript source PR.
 

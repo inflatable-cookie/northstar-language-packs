@@ -1,6 +1,6 @@
 # 001 — Build TypeScript Package Source
 
-Status: ready
+Status: complete
 Owner: repo maintainers
 Updated: 2026-09-02
 Upstream authority: Northstar card `g02.048/118` at
@@ -27,19 +27,19 @@ merge the PR.
 
 ## Acceptance
 
-- [ ] `packages/typescript` contains the exact 20-file initial package shape;
-- [ ] manifest identity is `@northstar/typescript-quality` `0.1.0`, core range
+- [x] `packages/typescript` contains the exact 20-file initial package shape;
+- [x] manifest identity is `@northstar/typescript-quality` `0.1.0`, core range
   `>=0.2.0 <1.0.0`, workflow `explicit_audit_repair`, overlays `base`,
   `svelte`, and `sveltekit`;
-- [ ] the nine normative rules, evaluation-only signal, revision-S behavior,
+- [x] the nine normative rules, evaluation-only signal, revision-S behavior,
   schemas, templates, and retained limitations are byte- or meaning-exact;
-- [ ] package scripts use task-source/catalog context for package assets and
+- [x] package scripts use task-source/catalog context for package assets and
   consumer target context for audit scope;
-- [ ] direct self-check declares and enforces `effigy` plus `sh` capabilities;
-- [ ] source/self-check parity and package-local QA pass;
-- [ ] no Rust or unrelated Northstar payload appears in source or staged
+- [x] direct self-check declares and enforces `effigy` plus `sh` capabilities;
+- [x] source/self-check parity and package-local QA pass;
+- [x] no Rust or unrelated Northstar payload appears in source or staged
   package inventories;
-- [ ] local card, milestone, log, handoff, and front doors are honest.
+- [x] local card, milestone, log, handoff, and front doors are honest.
 
 ## Review Oracle
 
@@ -57,7 +57,7 @@ merge the PR.
 - direct self-check from a staged package root;
 - pinned source-to-package and source-to-staged parity;
 - all review-oracle counterexamples;
-- `git diff --check`.
+- `git diff --check origin/main...HEAD`.
 
 ## Stop Conditions
 
@@ -68,7 +68,29 @@ merge the PR.
 - validation requires registry, consumer, or Rust work;
 - a new product or protocol decision is needed.
 
+## Completion Notes
+
+Worker `worker/build-typescript-package-source` in Paseo worktree
+`/Users/tom/.paseo/worktrees/0z9augi8/build-typescript-package-source`
+relocated the pinned 17-file payload from Northstar `3f360be` into the 20-file
+package. Twelve surfaces are byte-exact. Two JSON files
+(`audit-manifest.schema.json`, `strict-audit.json`) are meaning-exact after
+stripping a pinned extra EOF blank line so `git diff --check origin/main...HEAD`
+is green. The three Rhai scripts resolve assets from Effigy `catalog_root` and
+keep `repo_root` as the consumer target.
+
+Source-list digest method: SHA-256 of the GNU `sha256sum` listing
+(`<file-sha256>  <original-path>\n`) over the 17 pinned paths. Reproduced
+digest `7e3ff26cd9319743fee5b0433d79b0cea6515347aa5780f68f2fcbb6eb664d26`.
+Package-tree digest
+`sha256:0fcd5c58296f168895b66f2472621d49761f7786ea2ad1ebeefb801040967d6b`.
+Manifest digest
+`sha256:ed95883c428ef43f0f02d38d60bf8d50e6e29313f5751c1b2a5744157a5b5362`.
+
+The thin adapter and audit mode still name Northstar-root routing. Registry
+and consumer activation stay orchestrator-owned.
+
 ## Next Task
 
-Implement the package source, open the PR, and stop for exact-head review.
-
+Stop for orchestrator exact-head review of the source PR. Do not merge, pin,
+or start Jetstream work from this card.

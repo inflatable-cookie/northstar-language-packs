@@ -7,6 +7,25 @@ continue the scoped task.
 
 <!-- Newest first. Never include secrets. -->
 
+### [ ] Working-tree `git diff --check` misses new-file EOF blanks — 2026-09-02
+- Friction: `git diff --check` on a clean worktree is empty; the required
+  check is `git diff --check origin/main...HEAD`, which reports trailing
+  blank lines on newly added files.
+- Impact: closeout claimed a clean diff-check while the base-to-head range
+  failed on two copied JSON files.
+- Possible fix: make package QA or the card validation spell the base-to-head
+  form, and strip extra EOF blanks on extraction.
+- Surface: worker closeout validation; copied JSON package files.
+
+### [ ] Rhai functions cannot read Effigy catalog_root constant — 2026-09-02
+- Friction: `catalog_root` and `repo_root` are script-scope constants; a
+  function that names them throws `Variable not found`.
+- Impact: package scripts must resolve task-source at top level and pass it
+  down, which is easy to get wrong when extracting from repo-root heuristics.
+- Possible fix: capture host constants into the Rhai global module, or
+  document that they are top-level only.
+- Surface: Effigy Rhai host (`catalog_root`, `repo_root`, `skill_root`).
+
 ### [ ] Native Effigy starter uses removed docs command spelling — 2026-09-02
 - Friction: Northstar's native manifest template emits `check-links` and other
   hyphenated subcommands rejected by Effigy 0.12.

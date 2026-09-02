@@ -14,5 +14,5 @@ owned package work.
 
 ## Next Task
 
-Execute the ready TypeScript source-package card in `roadmaps/g01/`.
+Await accepted exact-head review of the TypeScript source-package PR.
 

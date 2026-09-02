@@ -1,0 +1,25 @@
+[manifest]
+minimum_effigy_version = "0.12.0"
+
+[catalog]
+alias = "typescript-quality"
+
+[tasks]
+"check:typescript-quality" = [{ rhai = "scripts/check-typescript-quality.rhai" }]
+"typescript-quality:setup" = [{ rhai = "scripts/typescript-quality-setup.rhai" }]
+"typescript-quality:record" = [{ rhai = "scripts/typescript-quality-recorder.rhai" }]
+"test:typescript-quality-setup" = [{ task = "typescript-quality:setup self-test" }]
+"test:typescript-quality-recorder" = [{ task = "typescript-quality:record self-test" }]
+"qa:docs:paths" = "effigy docs check paths SKILL.md northstar-package.json effigy.toml scripts/self-check.sh references/modes/typescript-quality-audit.md"
+"qa:docs:workflow" = "effigy docs check contains SKILL.md --require 'Do not activate from ordinary coding' --require 'Thin explicit entrypoint'"
+"qa:docs" = [
+  { task = "qa:docs:paths" },
+  { task = "qa:docs:workflow" },
+]
+health = [{ task = "check:typescript-quality" }]
+qa = [
+  { task = "qa:docs" },
+  { task = "check:typescript-quality" },
+  { task = "test:typescript-quality-setup" },
+  { task = "test:typescript-quality-recorder" },
+]
