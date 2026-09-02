@@ -56,4 +56,5 @@ on `scripts/self-check.sh`.
 
 ## Next Move
 
-Open the source PR and stop for orchestrator exact-head review.
+Stop for orchestrator exact-head review of
+https://github.com/inflatable-cookie/northstar-language-packs/pull/1.

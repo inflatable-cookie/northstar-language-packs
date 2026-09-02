@@ -86,7 +86,7 @@ fresh Jetstream canary.
   self-check, pinned 17-file source parity, exact 20-file source/staged
   inventory, all five local oracle counterexamples, and `git diff --check`
 - **PR base/head:** `main` <- `worker/build-typescript-package-source`
-- **PR URL:** pending
+- **PR URL:** https://github.com/inflatable-cookie/northstar-language-packs/pull/1
 - **Review state:** awaiting orchestrator exact-head review
 - **Merge path:** orchestrator after accepted exact-head review and passing
   required checks
@@ -148,8 +148,9 @@ fresh Jetstream canary.
 
 ## Suggested Next Move
 
-Push the source PR if it is not yet open, then stop for orchestrator
-exact-head review. Do not merge or start registry/Jetstream work.
+Stop for orchestrator exact-head review of
+https://github.com/inflatable-cookie/northstar-language-packs/pull/1.
+Do not merge or start registry/Jetstream work.
 
 ## Completion Protocol
 
