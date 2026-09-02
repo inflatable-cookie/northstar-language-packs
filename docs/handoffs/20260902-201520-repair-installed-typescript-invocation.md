@@ -5,7 +5,7 @@ handoff_mode: worker-pr-loop
 worker_mode: implementation
 dispatch_authority: orchestrator
 handoff: single-file-path-only
-status: ready
+status: awaiting-review
 owner: repo maintainers
 created: 2026-09-02
 updated: 2026-09-02
@@ -29,30 +29,15 @@ the same installed source/consumer target boundary that Jetstream will use.
 ## Current State
 
 - Repository: `/Users/tom/Dev/projects/northstar-language-packs`.
-- Planning branch: `main`; dispatch base is the commit containing this handoff.
 - Worker branch: `worker/repair-installed-typescript-invocation`.
-- Worktree: Paseo `branch-off` from pushed `main`, slug
-  `repair-installed-typescript-invocation`.
-- Required sibling: `/Users/tom/Dev/projects/northstar`, linked as
-  `../northstar` for governing contract and independent comparison only.
-- Ready card:
-  `docs/roadmaps/g01/batch-cards/002-repair-installed-typescript-invocation.md`.
-- Accepted but superseded source: merge `09ef1743dd8fc18bae3bf04fae791f1d7d4e5daf`,
-  tree digest
-  `sha256:0fcd5c58296f168895b66f2472621d49761f7786ea2ad1ebeefb801040967d6b`.
-- Upstream review finding:
-  https://github.com/inflatable-cookie/northstar/pull/23#issuecomment-5514983257.
-- Allowed runway: card 002 only. Northstar registry repin and Jetstream remain
-  serial behind accepted review and merge.
-- Surfaces owned: `packages/typescript` invocation docs/scripts/fixtures,
-  package-local validation, card 002, one dated log, this handoff, and directly
-  dependent local front doors.
-- Worker class: day-to-day. The failure and required public boundary are exact;
-  no frontier reasoning remains after review.
-- Required validation: every card-002 oracle, package QA, direct self-check,
-  exact installed setup/record proof against a decoy consumer, repository QA,
-  independent canonical identity, and
-  `git diff --check origin/main...HEAD`.
+- Worktree: `/Users/tom/.paseo/worktrees/0z9augi8/repair-installed-typescript-invocation`.
+- Card 002 is implemented. Public invocation is
+  `effigy skill run --path <installed-package-root> typescript-quality:{setup,record} --repo <consumer-root> -- <args>`.
+- Replacement identities:
+  tree `sha256:767671328a32f45610aba4462df7b3bdc87c62fd0ab2af8e6aee866aa15a334a`,
+  manifest `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`.
+- Evidence: `docs/logs/2026-09/02-202944-repair-installed-typescript-invocation.md`.
+- Northstar sibling, registry, and Jetstream were not edited.
 - PR base/head: `main` <- `worker/repair-installed-typescript-invocation`.
 - Merge path: orchestrator after accepted exact-head review and checks.
 
@@ -72,12 +57,18 @@ the same installed source/consumer target boundary that Jetstream will use.
   invocation honestly.
 - Never merge the PR or mutate the sibling.
 
+## Important Context
+
+Effigy already expresses the required public surface:
+`effigy skill run --path <SKILL_DIR> <SELECTOR> [--repo <CONSUMER>] [-- <ARGS>]`.
+The installed package catalogue alias is `typescript-quality`, not `northstar`.
+A decoy consumer may expose a `northstar` catalogue; that catalogue must not
+win when the task source is `--path <installed-package-root>`.
+
 ## Suggested Next Move
 
-Reproduce both review failures from the materialized main package. Map the
-smallest docs/script changes, initialize decoy consumer fixtures, then prove
-setup and at least the recorder lifecycle operations through the installed
-public surface before recomputing identity.
+Open the reviewable PR, then stop. Orchestrator exact-head review owns
+acceptance, merge, and the Northstar registry repin.
 
 ## Completion Protocol
 

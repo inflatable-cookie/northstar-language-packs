@@ -1327,8 +1327,19 @@ require(fs::is_file(path::join(catalog_root, "northstar-package.json")),
 let northstar_skill_root = catalog_root;
 let catalogue_path = path::join(northstar_skill_root, "references/language-quality/typescript/catalogue.json");
 let catalogue = json::read_file(catalogue_path);
+let task_args = [];
+for argument in args {
+    task_args.push(argument);
+}
+if task_args.len() > 0 && task_args[0] == "--" {
+    let forwarded = [];
+    for index in 1..task_args.len() {
+        forwarded.push(task_args[index]);
+    }
+    task_args = forwarded;
+}
 
-if args.len() == 1 && args[0] == "self-test" {
+if task_args.len() == 1 && task_args[0] == "self-test" {
     test_positive_repair_and_extension(catalogue, catalogue_path);
     test_positive_repository_scope(catalogue, catalogue_path);
     test_positive_operator_stop(catalogue, catalogue_path);
@@ -1341,21 +1352,21 @@ if args.len() == 1 && args[0] == "self-test" {
     test_unavailable_tool_evidence(catalogue, catalogue_path);
     test_consumer_decoy_catalogue_ignored(catalogue, catalogue_path);
     log("TypeScript quality recorder: OK (5 positive paths, 12 negative paths)");
-} else if args.len() == 3 && args[0] == "init" {
-    let root = init_audit(args[1], json::read_file(args[2]), catalogue_path);
+} else if task_args.len() == 3 && task_args[0] == "init" {
+    let root = init_audit(task_args[1], json::read_file(task_args[2]), catalogue_path);
     log("TypeScript quality audit initialized: " + root);
-} else if args.len() == 4 && args[0] == "assess" {
-    assess_unit(args[1], args[2], json::read_file(args[3]), catalogue);
-    log("TypeScript quality unit assessed: " + args[3]);
-} else if args.len() == 4 && args[0] == "extend" {
-    extend_unit(args[1], args[2], json::read_file(args[3]), catalogue);
-    log("TypeScript quality unit scope extended: " + args[3]);
-} else if args.len() == 4 && args[0] == "complete" {
-    complete_unit(args[1], args[2], json::read_file(args[3]), catalogue);
-    log("TypeScript quality unit completed: " + args[3]);
-} else if args.len() == 3 && args[0] == "finalize" {
-    finalize_audit(args[1], args[2]);
-    log("TypeScript quality audit finalized: " + path::join(audit_root(args[1], args[2]), "result.json"));
+} else if task_args.len() == 4 && task_args[0] == "assess" {
+    assess_unit(task_args[1], task_args[2], json::read_file(task_args[3]), catalogue);
+    log("TypeScript quality unit assessed: " + task_args[3]);
+} else if task_args.len() == 4 && task_args[0] == "extend" {
+    extend_unit(task_args[1], task_args[2], json::read_file(task_args[3]), catalogue);
+    log("TypeScript quality unit scope extended: " + task_args[3]);
+} else if task_args.len() == 4 && task_args[0] == "complete" {
+    complete_unit(task_args[1], task_args[2], json::read_file(task_args[3]), catalogue);
+    log("TypeScript quality unit completed: " + task_args[3]);
+} else if task_args.len() == 3 && task_args[0] == "finalize" {
+    finalize_audit(task_args[1], task_args[2]);
+    log("TypeScript quality audit finalized: " + path::join(audit_root(task_args[1], task_args[2]), "result.json"));
 } else {
     throw("usage: typescript-quality:record self-test | init <target-root> <manifest-input.json> | assess|extend|complete <target-root> <audit-id> <input.json> | finalize <target-root> <audit-id>");
 }

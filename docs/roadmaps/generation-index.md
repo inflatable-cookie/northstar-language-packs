@@ -12,5 +12,6 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Execute `g01.001/002`: repair installed setup/record invocation and produce a
-replacement immutable package identity for Northstar registry promotion.
+Execute card-002 exact-head review, then pin the replacement TypeScript
+package identity in Northstar. Do not start registry promotion from this
+repository.

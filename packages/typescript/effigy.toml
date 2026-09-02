@@ -10,7 +10,8 @@ alias = "typescript-quality"
 "typescript-quality:record" = [{ rhai = "scripts/typescript-quality-recorder.rhai" }]
 "test:typescript-quality-setup" = [{ task = "typescript-quality:setup self-test" }]
 "test:typescript-quality-recorder" = [{ task = "typescript-quality:record self-test" }]
-"qa:docs:paths" = "effigy docs check paths SKILL.md northstar-package.json effigy.toml scripts/self-check.sh references/modes/typescript-quality-audit.md"
+"test:typescript-quality-installed-route" = "scripts/prove-installed-invocation.sh"
+"qa:docs:paths" = "effigy docs check paths SKILL.md northstar-package.json effigy.toml scripts/self-check.sh scripts/prove-installed-invocation.sh references/modes/typescript-quality-audit.md"
 "qa:docs:workflow" = "effigy docs check contains SKILL.md --require 'Do not activate from ordinary coding' --require 'Thin explicit entrypoint'"
 "qa:docs" = [
   { task = "qa:docs:paths" },
@@ -22,4 +23,5 @@ qa = [
   { task = "check:typescript-quality" },
   { task = "test:typescript-quality-setup" },
   { task = "test:typescript-quality-recorder" },
+  { task = "test:typescript-quality-installed-route" },
 ]

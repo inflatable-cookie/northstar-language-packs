@@ -28,7 +28,8 @@
       "typescript-quality:setup",
       "typescript-quality:record",
       "test:typescript-quality-setup",
-      "test:typescript-quality-recorder"
+      "test:typescript-quality-recorder",
+      "test:typescript-quality-installed-route"
     ]
   },
   "self_check": {

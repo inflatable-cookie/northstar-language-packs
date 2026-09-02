@@ -1,6 +1,6 @@
 # 001 — TypeScript Package Source
 
-Status: active; installed-invocation repair ready
+Status: active; card 002 awaiting exact-head review
 Owner: repo maintainers
 Upstream authority: Northstar `g02.048/118` at
 `3f360be97759abf658867e062a30edc3b9c8c597`
@@ -15,11 +15,11 @@ Jetstream activation.
 
 - `batch-cards/001-typescript-package-source.md` produced the accepted initial
   source in PR 1, merged as `09ef174`.
-- Execute `batch-cards/002-repair-installed-typescript-invocation.md` before
-  Northstar registry promotion.
+- `batch-cards/002-repair-installed-typescript-invocation.md` repaired the
+  installed setup/record invocation and recorded the replacement identity.
+  Exact-head review is outstanding.
 
 ## Next Task
 
-Dispatch card 002 from
-`docs/handoffs/20260902-201520-repair-installed-typescript-invocation.md`.
-Registry promotion stays serial on the replacement immutable identity.
+Stop for exact-head review of the card-002 source PR. Registry promotion stays
+serial on the replacement immutable identity.

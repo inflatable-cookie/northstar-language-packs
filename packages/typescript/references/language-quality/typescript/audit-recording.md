@@ -3,7 +3,7 @@
 Invoke the installed skill-local recorder through:
 
 ```text
-effigy --repo <northstar-skill-root> northstar/typescript-quality:record <operation> ...
+effigy skill run --path <installed-package-root> typescript-quality:record --repo <consumer-root> -- <operation> ...
 ```
 
 Records live at `<target>/.effigy/typescript-quality/audits/<audit-id>/`.

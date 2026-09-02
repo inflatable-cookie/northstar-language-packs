@@ -7,6 +7,17 @@ continue the scoped task.
 
 <!-- Newest first. Never include secrets. -->
 
+### [ ] Installed skill-run fixtures need a project root and physical paths — 2026-09-02
+- Friction: `effigy skill run --repo` rejects a bare directory (`could not
+  resolve a project root`). On macOS, `pwd` keeps `/var/folders/...` while
+  Effigy JSON records `/private/var/folders/...`.
+- Impact: a decoy consumer must plant an Effigy catalogue even to prove that
+  catalogue cannot win, and proofs must canonicalize with `pwd -P` before
+  comparing source/target evidence.
+- Possible fix: document skill-run consumer fixtures; compare JSON roots
+  after physical-path normalization.
+- Surface: `effigy skill run --repo`; package installed-route proof.
+
 ### [ ] Working-tree `git diff --check` misses new-file EOF blanks — 2026-09-02
 - Friction: `git diff --check` on a clean worktree is empty; the required
   check is `git diff --check origin/main...HEAD`, which reports trailing

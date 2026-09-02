@@ -14,5 +14,5 @@ owned package work.
 
 ## Next Task
 
-Repair the installed TypeScript setup/record invocation under `g01.001/002`.
+Stop for exact-head review of the installed TypeScript setup/record repair.
 Northstar registry promotion remains blocked on the replacement identity.

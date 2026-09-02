@@ -9,15 +9,15 @@
 
 ## Active Milestone
 
-- `001-typescript-package-source.md` — active; initial source merged, installed
-  invocation repair ready
+- `001-typescript-package-source.md` — active; card 002 source candidate
+  awaiting exact-head review
 
 ## Milestones
 
 - `g01.001` — TypeScript package source canary (card 001 complete; card 002
-  ready)
+  source candidate awaiting review)
 
 ## Next Task
 
-Dispatch card 002 to repair the installed setup/record invocation before
-Northstar registry promotion.
+Stop for exact-head review of the card-002 installed-invocation repair.
+Northstar registry promotion remains blocked on the replacement identity.
