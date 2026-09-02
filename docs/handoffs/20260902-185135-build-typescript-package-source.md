@@ -5,7 +5,7 @@ handoff_mode: worker-pr-loop
 worker_mode: implementation
 dispatch_authority: orchestrator
 handoff: single-file-path-only
-status: ready-to-launch
+status: awaiting-review
 owner: repo maintainers
 created: 2026-09-02
 updated: 2026-09-02
@@ -42,7 +42,7 @@ fresh Jetstream canary.
 - **Planning artifacts included at the base:** strict repository spine,
   `g01.001`, and batch card `g01.001/001`
 - **Worker branch:** `worker/build-typescript-package-source`
-- **Worker worktree:** Paseo-managed worktree; use its actual generated path
+- **Worker worktree:** `/Users/tom/.paseo/worktrees/0z9augi8/build-typescript-package-source`
 - **Worktree creation command:** Paseo `branch-off` from `origin/main` with
   worktree slug `build-typescript-package-source`
 - **Worker worktree policy:** launcher worktree first; named/manual fallback
@@ -54,10 +54,10 @@ fresh Jetstream canary.
 - **Active spec lane:** upstream Northstar spec 034 and card `g02.048/118` at
   `3f360be97759abf658867e062a30edc3b9c8c597`
 - **Roadmap milestone:** `docs/roadmaps/g01/001-typescript-package-source.md`
-- **Ready cards, in order:**
-  `docs/roadmaps/g01/batch-cards/001-typescript-package-source.md`
+- **Ready cards, in order:** none; local card `g01.001/001` is complete and in
+  review
 - **Allowed runway:** one package-source card only
-- **Remaining card budget:** one
+- **Remaining card budget:** zero
 - **Dispatch topology:** sole ready lane. Northstar registry work is serial on
   this accepted immutable source; Jetstream is serial on the registry merge.
 - **Parallel safety check:** no other source-package worker is active
@@ -87,7 +87,7 @@ fresh Jetstream canary.
   inventory, all five local oracle counterexamples, and `git diff --check`
 - **PR base/head:** `main` <- `worker/build-typescript-package-source`
 - **PR URL:** pending
-- **Review state:** awaiting worker implementation and PR
+- **Review state:** awaiting orchestrator exact-head review
 - **Merge path:** orchestrator after accepted exact-head review and passing
   required checks
 
@@ -134,20 +134,22 @@ fresh Jetstream canary.
 - **Source baseline digest:**
   `7e3ff26cd9319743fee5b0433d79b0cea6515347aa5780f68f2fcbb6eb664d26`.
   Reproduce and explain the digest method before relying on it.
-- **Open tensions:** package Rhai currently derives assets from consumer
-  `repo_root`; replace that assumption with Effigy's task-source/catalog root
-  while leaving consumer audit scope on the target context. Stop if the active
-  Effigy surface cannot express that honestly.
+- **Open tensions:** none remaining in this lane. Package Rhai resolves assets
+  from Effigy `catalog_root`; `repo_root` stays the consumer target.
+- **Identities:** source-list digest
+  `7e3ff26cd9319743fee5b0433d79b0cea6515347aa5780f68f2fcbb6eb664d26`;
+  package-tree digest
+  `sha256:b4844ecabdd6a4e21cd33d4da9c94eb18fb8982996e32e92f06be07c08cd0337`;
+  manifest digest
+  `sha256:ed95883c428ef43f0f02d38d60bf8d50e6e29313f5751c1b2a5744157a5b5362`.
 - **Report after:** package shape plus source/staged parity is complete, or an
   earlier stop condition is reached.
 - **Report to:** this Paseo orchestrator through finish notification.
 
 ## Suggested Next Move
 
-Run the completion-protocol preflight before broad reads. Then load the local
-card and pinned upstream authority through the verified `northstar` sibling.
-Materialize the exact relocation map, make the smallest task-source refactor,
-and prove the package before closeout.
+Push the source PR if it is not yet open, then stop for orchestrator
+exact-head review. Do not merge or start registry/Jetstream work.
 
 ## Completion Protocol
 

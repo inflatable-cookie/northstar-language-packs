@@ -12,5 +12,5 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Execute `g01.001` only.
+Await accepted exact-head review of the TypeScript source PR.
 

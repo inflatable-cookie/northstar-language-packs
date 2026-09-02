@@ -7,5 +7,5 @@
 
 ## Next Task
 
-Execute `g01.001`, the TypeScript package-source canary.
+Await accepted exact-head review of the TypeScript source-package PR.
 

@@ -20,6 +20,6 @@ effigy qa
 
 ## Current Focus
 
-The first lane extracts `@northstar/typescript-quality` into
-`packages/typescript`. See `docs/roadmaps/README.md`.
+The TypeScript package source is in `packages/typescript` and waiting
+exact-head review. See `docs/roadmaps/README.md`.
 
