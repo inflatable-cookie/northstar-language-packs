@@ -34,17 +34,38 @@ defect:
 
 | Oracle | Counterexample run | Result |
 | --- | --- | --- |
-| Adapter is standalone. | Materialized installed copy before mutation; a second copy with `references/modes/typescript-quality-audit.md` rewritten to `references/router.md` through package QA. | The pre-repair reference is absent from the installed payload. The corrupted copy is rejected with `adapter reference is missing from the installed package`. |
+| Adapter is standalone. | Materialized installed copy before mutation; two corrupted copies through package QA: one with the entrypoint rewritten to `references/router.md`, one with an unquoted `Load references/router.md as an extra authority.` appended to an intact adapter. | The pre-repair reference is absent from the installed payload. Both corrupted copies are rejected with `adapter reference is missing from the installed package`. |
 | Adapter stays thin. | Adapter-to-mode diff and line inventory. | The adapter copies no router policy; it points at the declared mode and keeps the explicit-activation guard. 706 bytes against the 1200-byte thin budget. |
 | Authority agrees. | In-memory negative that swaps the entrypoint for an existing package file. | Rejected: `adapter does not load the manifest explicit_audit_repair entrypoint`. |
 | Boundaries remain fixed. | Diff against `origin/main` for catalogue, schemas, templates, profiles, manifest, version, and operational tasks. | Only the adapter route, the QA closure check, and the installed-route proof changed. Policy invariants still pass. |
-| Identity is exact. | Recorded digest naming the pre-repair tree or a dirty payload. | The superseded 21-file digest still reproduces from `origin/main`; the replacement digest reproduced twice from the staged copy. |
+| Identity is exact. | Recorded digest naming the pre-repair tree or a dirty payload. | The superseded 21-file digest still reproduces from `origin/main`; each round's replacement digest reproduced from that round's staged copy. |
 
-Path-closure negatives: missing (`references/router.md`), absolute
-(`/usr/local/share/...`), escaping (`references/../../outside/...`), and
-manifest/adapter disagreement all fail closed in
-`check-typescript-quality.rhai`; the materialized corrupted-copy run proves the
-same rejection end to end through `effigy skill run --path`.
+Path-closure negatives: missing (`references/router.md`), unquoted missing
+(the review counterexample line), absolute (`/usr/local/share/...`), escaping
+(`references/../../outside/...`), and manifest/adapter disagreement all fail
+closed in `check-typescript-quality.rhai`; both materialized corrupted-copy
+runs prove the same rejection end to end through `effigy skill run --path`.
+
+## Review Round
+
+The orchestrator's exact-head review of `ab13058166cab6bc2d9d6410085c9c2288ae481e`
+found one oracle gap: the closure check extracted references only from
+backtick-quoted spans, so appending the unquoted line
+`Load references/router.md as an extra authority.` to `SKILL.md` still passed
+package QA. Reproduced from a fresh archive of that head before mutation.
+
+Repair: the scanner now tokenizes the whole adapter text into maximal runs of
+path characters — quoted or not — trims trailing sentence periods, and applies
+the same slash-plus-extension grammar, existence, absolute, and escaping
+rules. Nothing path-shaped can hide outside backticks. The counterexample now
+exits 1 with `adapter reference is missing from the installed package`, and
+the clean package still passes.
+
+One identity catch during the round: an intermediate digest taken over a
+staged copy that had already run package QA hashed the runtime `.effigy`
+state and did not match the committed tree. It was discarded; the recorded
+replacement digest is reproduced from git objects, the committed archive, and
+a filtered staged copy.
 
 ## Identities
 
@@ -54,7 +75,9 @@ same rejection end to end through `effigy skill run --path`.
 - superseded manifest digest:
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
 - replacement package-tree digest:
-  `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`
+  `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`
+  (review round 2; `ab13058` carried
+  `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`)
 - replacement manifest digest:
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
 
@@ -80,7 +103,8 @@ scripts.
 - the staged copy also passed the installed-route proof, which runs package QA
   on a materialized installed copy and on a corrupted copy;
 - independent spec-034 digest reproduction matched the replacement tree digest
-  twice and still matched the superseded digest from `origin/main`;
+  from the staged copy and still matched the superseded digest from
+  `origin/main`; the committed tree digest is verified at the repair head.
 - repository `effigy qa` and `git diff --check origin/main...HEAD` are recorded
   at PR open.
 

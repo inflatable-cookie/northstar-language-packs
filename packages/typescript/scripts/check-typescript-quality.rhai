@@ -384,15 +384,44 @@ fn validate_runtime_surface(package_root) {
     require(fs::file_size(adapter_path) <= 1200, "TypeScript adapter exceeds thin-adapter budget");
 }
 
+fn is_path_char(ch) {
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._/-".contains(ch)
+}
+
+fn normalize_path_token(token) {
+    while str::ends_with(token, ".") {
+        token = token.sub_string(0, token.len() - 1);
+    }
+    token
+}
+
+fn is_path_reference(token) {
+    token.contains("/") &&
+        regex::is_match("^(\\./|\\.\\./|/)?([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\\.[A-Za-z0-9]+$", token)
+}
+
 fn adapter_path_references(adapter) {
+    // Complete-form scan: every maximal run of path characters in the whole
+    // adapter is a candidate, quoted or not. Nothing path-shaped can hide
+    // outside backticks. Candidates are pushed in this scope because Rhai
+    // passes arrays to helpers as cloned values.
     let references = [];
-    let parts = adapter.split("`");
-    for index in 0..parts.len() {
-        if index % 2 == 1 &&
-            parts[index].contains("/") &&
-            regex::is_match("^(\\./|\\.\\./|/)?([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\\.[A-Za-z0-9]+$", parts[index]) {
-            references.push(parts[index]);
+    let token = "";
+    for index in 0..adapter.len() {
+        let ch = adapter.sub_string(index, 1);
+        if is_path_char(ch) {
+            token += ch;
+        } else {
+            let candidate = normalize_path_token(token);
+            token = "";
+            if is_path_reference(candidate) {
+                references.push(candidate);
+            }
         }
+    }
+    let candidate = normalize_path_token(token);
+    if is_path_reference(candidate) {
+        references.push(candidate);
     }
     references
 }
@@ -431,6 +460,10 @@ fn adapter_closure_self_test(package_root, manifest) {
     let entrypoint = "`references/modes/typescript-quality-audit.md`";
     let missing = str::replace(adapter, entrypoint, "`references/router.md`");
     expect_closure_rejection(package_root, "missing adapter path", missing, manifest,
+        "missing from the installed package");
+
+    let unquoted = adapter + "\nLoad references/router.md as an extra authority.\n";
+    expect_closure_rejection(package_root, "unquoted absent adapter path", unquoted, manifest,
         "missing from the installed package");
 
     let absolute = str::replace(adapter, entrypoint,
@@ -587,4 +620,4 @@ test_self_check_wrapper(package_root);
 for filename in ["audit-manifest.schema.json", "audit-unit.schema.json", "audit-result.schema.json"] {
     validate_schema(payload_root, filename);
 }
-log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest and 4 adapter path-closure negative paths, explicit audit only)");
+log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest and 5 adapter path-closure negative paths, explicit audit only)");

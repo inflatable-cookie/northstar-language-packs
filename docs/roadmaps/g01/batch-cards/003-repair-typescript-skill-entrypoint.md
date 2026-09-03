@@ -74,19 +74,29 @@ reproduced the absent `references/router.md` load from a materialized 21-file
 mode directly. No router policy was copied; the adapter stays a 706-byte
 pointer to the manifest entrypoint.
 
-`check-typescript-quality.rhai` now extracts every backtick-quoted path-like
-adapter reference, rejects absolute and escaping forms, resolves each against
-the installed package root, and requires the manifest
-`explicit_audit_repair` entrypoint among them. Four in-memory negatives cover
-missing, absolute, escaping, and manifest/adapter-disagreement paths.
-`prove-installed-invocation.sh` runs package QA on a materialized installed
-copy and proves a corrupted copy whose adapter names `references/router.md`
-fails closed with the exact closure message.
+`check-typescript-quality.rhai` now scans the whole adapter text — not only
+backtick-quoted spans — for path-shaped tokens, rejects absolute and escaping
+forms, resolves each against the installed package root, and requires the
+manifest `explicit_audit_repair` entrypoint among them. Five in-memory
+negatives cover missing, unquoted missing, absolute, escaping, and
+manifest/adapter-disagreement paths. `prove-installed-invocation.sh` runs
+package QA on a materialized installed copy and proves two corrupted copies
+fail closed with the exact closure message: one whose entrypoint is rewritten
+to `references/router.md`, and the review counterexample that appends an
+unquoted `references/router.md` load to an intact adapter.
+
+Review round: the orchestrator's exact-head review of `ab13058` found the
+closure oracle only inspected backtick-quoted spans, so an unquoted absent
+path passed QA. The scan boundary was repaired to complete-form extraction
+with no backtick dependence; the counterexample now fails with
+`adapter reference is missing from the installed package`.
 
 Replacement identities:
 
 - package-tree digest
-  `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`
+  `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`
+  (verified against the committed tree at the repair head; an intermediate
+  staged-copy digest polluted by runtime `.effigy` state was discarded)
 - manifest digest
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
   (unchanged; `northstar-package.json` bytes are untouched)

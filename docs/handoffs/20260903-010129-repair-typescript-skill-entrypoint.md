@@ -38,15 +38,16 @@ is honest and its replacement identity is reviewed and repinned.
 - **Worker branch:** `worker/repair-typescript-skill-entrypoint`
 - **Worker worktree:**
   `/Users/tom/.paseo/worktrees/0z9augi8/repair-typescript-skill-entrypoint`
-- **Card 003 is implemented.** The adapter loads its package-local
-  `references/modes/typescript-quality-audit.md`; no router policy was copied
-  and the adapter stays within its thin budget.
-- **Proof added:** package QA rejects missing, absolute, escaping, and
-  manifest/adapter-disagreement adapter paths; the installed-route proof runs
-  package QA on a materialized installed copy and proves a corrupted copy
-  fails closed.
+- **Card 003 is implemented; one review round repaired.** The adapter loads
+  its package-local `references/modes/typescript-quality-audit.md`; no router
+  policy was copied and the adapter stays within its thin budget.
+- **Proof added:** package QA scans the whole adapter text for path-shaped
+  references (quoted or not) and rejects missing, absolute, escaping, and
+  manifest/adapter-disagreement forms; the installed-route proof runs package
+  QA on a materialized installed copy and proves two corrupted copies fail
+  closed, including the review's unquoted `references/router.md` counterexample.
 - **Replacement identities:** tree
-  `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`;
+  `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`;
   manifest
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
   (unchanged; manifest bytes are untouched).

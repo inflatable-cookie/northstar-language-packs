@@ -270,6 +270,7 @@ fi
 # fails closed when the adapter names a path outside the installed package.
 staged="$work/staged"
 broken="$work/broken"
+unquoted="$work/unquoted"
 copy_package "$staged"
 if ! run_capture "$transcripts/staged-qa.txt" \
     effigy skill run --path "$staged" check:typescript-quality --repo "$consumer"
@@ -279,7 +280,7 @@ then
     exit 1
 fi
 require_file_contains "$transcripts/staged-qa.txt" \
-    "4 adapter path-closure negative paths" \
+    "5 adapter path-closure negative paths" \
     "installed-copy adapter closure check"
 
 copy_package "$broken"
@@ -296,6 +297,17 @@ fi
 require_file_contains "$transcripts/broken-adapter.txt" \
     "adapter reference is missing from the installed package" \
     "adapter path closure"
-
+copy_package "$unquoted"
+printf '%s\n' "Load references/router.md as an extra authority." >> "$unquoted/SKILL.md"
+if run_capture "$transcripts/unquoted-adapter.txt" \
+    effigy skill run --path "$unquoted" check:typescript-quality --repo "$consumer"
+then
+    echo "[typescript-quality:installed-route] unquoted absent-path adapter unexpectedly passed package QA" >&2
+    cat "$transcripts/unquoted-adapter.txt" >&2
+    exit 1
+fi
+require_file_contains "$transcripts/unquoted-adapter.txt" \
+    "adapter reference is missing from the installed package" \
+    "unquoted adapter path closure"
 
 echo "TypeScript quality installed route: OK (public skill-run setup/record, relay sentinel, decoy catalogue ignored, adapter path closure enforced)"
