@@ -79,14 +79,17 @@ enforces a closed thin-adapter grammar: the adapter must equal a canonical
 form built from the manifest's `explicit_audit_repair` entrypoint and the
 command name that `agents/openai.yaml` invokes, and the entrypoint file must
 exist inside the installed package root. Any extra load, reference, or prose
-fails closed. Seven in-memory negatives cover the two round-2 counterexamples
+fails closed. Seven grammar negatives cover the two round-2 counterexamples
 (external-URL and spaced-path extra loads), the round-1 unquoted extra load,
-missing, absolute, escaping, and manifest/adapter disagreement, plus a
-grammar-valid adapter whose entrypoint file is absent from the installed
-copy. `prove-installed-invocation.sh` runs package QA on a materialized
-installed copy and proves four corrupted copies fail closed with the exact
-grammar message: rewritten entrypoint, unquoted extra load, external-URL
-extra load, and spaced extra load.
+missing, absolute, escaping, and manifest/adapter disagreement. One
+existence negative proves a grammar-valid form still fails when the
+entrypoint file is absent from the installed copy — eight adapter negatives
+total. One exact-command policy negative proves a suffixed
+`$northstar-typescript-audit-evil` command fails while the exact configured
+command passes. `prove-installed-invocation.sh` runs package QA on a
+materialized installed copy (the clean policy positive) and proves five
+corrupted copies fail closed with their exact messages: four adapter-grammar
+rewrites and the suffixed-command policy.
 
 Review round 2: the orchestrator's exact-head review of `148f582` found the
 whole-text tokenizer still recognized only strings already matching its safe
@@ -94,12 +97,20 @@ path regex, so external-URL and spaced-path extra loads disappeared instead
 of failing closed. Reproduced from fresh archives of that head, then the
 heuristic was replaced by the closed grammar above.
 
+Review round 3: the orchestrator's exact-head review of `7913095` found the
+policy check matched by substring containment, so a suffixed
+`$northstar-typescript-audit-evil` command passed while adapter and policy
+invoked different commands. Reproduced from a fresh archive of that head,
+then the check was replaced by a closed exact-field policy form, and the
+seven/existence negative counts were reconciled as stated here.
+
 Replacement identities:
 
 - package-tree digest
-  `sha256:99c82da3c90a0a1c352917221ff48ea9d607222b8f01ce424ba08d24afa3de74`
+  `sha256:259cccdbacd7e2e293389efaf72cab005d0c275bd7cb600c99f30bfbfe071843`
   (verified against the committed tree at the repair head; an intermediate
-  staged-copy digest polluted by runtime `.effigy` state was discarded)
+  staged-copy digest polluted by runtime `.effigy` state was discarded in
+  round 1)
 - manifest digest
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
   (unchanged; `northstar-package.json` bytes are untouched)

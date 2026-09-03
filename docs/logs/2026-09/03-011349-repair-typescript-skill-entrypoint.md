@@ -40,14 +40,16 @@ defect:
 | Boundaries remain fixed. | Diff against `origin/main` for catalogue, schemas, templates, profiles, manifest, version, and operational tasks. | Only the adapter route, the QA closure check, and the installed-route proof changed. Policy invariants still pass. |
 | Identity is exact. | Recorded digest naming the pre-repair tree or a dirty payload. | The superseded 21-file digest still reproduces from `origin/main`; each round's replacement digest reproduced from that round's staged copy. |
 
-Adapter grammar negatives (round 2): the closed thin-adapter grammar rejects
+Adapter closure negatives (round 3): seven grammar negatives reject
 external-URL (`https://example.com/router.md`) and spaced
 (`references/missing router.md`) extra loads, the round-1 unquoted extra
-load, missing, absolute, escaping, and manifest/adapter disagreement forms;
-a grammar-valid adapter whose entrypoint file is absent from the installed
-copy fails the existence layer. All four corrupted materialized installed
-copies fail closed with `adapter is not the declared thin-adapter grammar
-form` through `effigy skill run --path`.
+load, missing, absolute, escaping, and manifest/adapter-disagreement forms;
+one existence negative rejects a grammar-valid form whose entrypoint file is
+absent from the installed copy — eight adapter negatives total. One
+exact-command policy negative rejects a suffixed
+`$northstar-typescript-audit-evil` command while the exact configured
+command passes. All five corrupted materialized installed copies fail closed
+with their exact messages through `effigy skill run --path`.
 
 ## Review Round 1
 
@@ -85,6 +87,27 @@ closed. Both counterexamples now exit 1 with
 `adapter is not the declared thin-adapter grammar form`; the clean adapter
 positive and all prior negatives are retained.
 
+## Review Round 3
+
+The orchestrator's exact-head review of `7913095114f27befd75e0ab816e89b64c8c60264`
+found the policy check matched by substring containment: replacing
+`$northstar-typescript-audit` with `$northstar-typescript-audit-evil` in
+`agents/openai.yaml` still passed package QA while adapter and policy invoked
+different commands. Reproduced from a fresh archive of that head before
+mutation. The same review flagged count drift: the checker ran eight
+in-memory adapter negatives (seven grammar plus one existence) while the
+card and handoff said "seven".
+
+Repair: `agents/openai.yaml` is now matched as a closed exact-field form —
+the whole `default_prompt` field must equal the canonical
+`Use $northstar-typescript-audit ...` line, so no suffixed or altered
+command can agree by substring accident. The evil-command variant is an
+in-memory negative and a fifth materialized corrupted copy. Counts are
+stated as seven grammar negatives plus one existence negative (eight
+adapter-closure negatives) plus one exact-command policy negative, and the
+QA banner names each family. The evil copy exits 1 with `agent policy is not
+the declared exact-command form`; the clean policy positive still passes.
+
 ## Identities
 
 - superseded source commit: `d18dc33b`
@@ -93,8 +116,10 @@ positive and all prior negatives are retained.
 - superseded manifest digest:
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
 - replacement package-tree digest:
-  `sha256:99c82da3c90a0a1c352917221ff48ea9d607222b8f01ce424ba08d24afa3de74`
-  (round 2; `148f582` carried
+  `sha256:259cccdbacd7e2e293389efaf72cab005d0c275bd7cb600c99f30bfbfe071843`
+  (round 3; `7913095` carried
+  `sha256:99c82da3c90a0a1c352917221ff48ea9d607222b8f01ce424ba08d24afa3de74`;
+  `148f582` carried
   `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`;
   `ab13058` carried
   `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`)

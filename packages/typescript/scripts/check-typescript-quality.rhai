@@ -418,15 +418,30 @@ fn validate_adapter_closure(package_root, adapter, manifest) {
     let entrypoint = manifest["entrypoints"]["explicit_audit_repair"];
     require(adapter == thin_adapter_form(name, entrypoint),
         "adapter is not the declared thin-adapter grammar form");
-    require(policy_command_agrees(package_root, name),
-        "agent policy does not invoke the adapter command: " + name);
+    validate_policy_form(package_root, name);
     require(fs::is_file(path::join(package_root, entrypoint)),
         "manifest entrypoint is missing from the installed package: " + entrypoint);
 }
 
-fn policy_command_agrees(package_root, name) {
-    let policy = fs::read_file(path::join(package_root, "agents/openai.yaml"));
-    policy.contains("$" + name)
+fn policy_form(name) {
+    // Closed exact-command form for the agent policy. The invoked command is
+    // matched as the whole default_prompt field, so a suffixed or altered
+    // command can never agree with the adapter by substring accident.
+    "interface:\n" +
+    "  display_name: \"Northstar TypeScript Audit\"\n" +
+    "  short_description: \"Audit and repair TypeScript/Svelte quality.\"\n" +
+    "  default_prompt: \"Use $" + name + " to audit and repair the requested TypeScript or Svelte scope.\"\n" +
+    "policy:\n" +
+    "  allow_implicit_invocation: false\n"
+}
+
+fn require_policy_form(policy, name) {
+    require(policy == policy_form(name),
+        "agent policy is not the declared exact-command form");
+}
+
+fn validate_policy_form(package_root, name) {
+    require_policy_form(fs::read_file(path::join(package_root, "agents/openai.yaml")), name);
 }
 
 fn expect_closure_rejection(package_root, label, adapter, manifest, expected) {
@@ -476,6 +491,21 @@ fn adapter_closure_self_test(package_root, manifest) {
     expect_closure_rejection(package_root, "entrypoint absent from installed copy",
         thin_adapter_form(thin_adapter_command(), "references/router.md"),
         shifted_manifest, "missing from the installed package");
+
+    let name = thin_adapter_command();
+    let evil_policy = str::replace(fs::read_file(path::join(package_root, "agents/openai.yaml")),
+        "$" + name, "$" + name + "-evil");
+    require(evil_policy != fs::read_file(path::join(package_root, "agents/openai.yaml")),
+        "evil policy fixture did not change");
+    let rejected = false;
+    try {
+        require_policy_form(evil_policy, name);
+    } catch (error) {
+        rejected = true;
+        require(error.to_string().contains("exact-command form"),
+            "evil command rejected for wrong reason: " + error);
+    }
+    require(rejected, "suffixed adapter command unexpectedly passed");
 }
 
 fn expect_rejection(label, catalogue, expected) {
@@ -617,4 +647,4 @@ test_self_check_wrapper(package_root);
 for filename in ["audit-manifest.schema.json", "audit-unit.schema.json", "audit-result.schema.json"] {
     validate_schema(payload_root, filename);
 }
-log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest and 7 thin-adapter-grammar negative paths, explicit audit only)");
+log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest, 7 grammar, 1 existence, and 1 exact-command negative paths, explicit audit only)");

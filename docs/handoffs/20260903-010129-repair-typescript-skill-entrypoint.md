@@ -38,19 +38,22 @@ is honest and its replacement identity is reviewed and repinned.
 - **Worker branch:** `worker/repair-typescript-skill-entrypoint`
 - **Worker worktree:**
   `/Users/tom/.paseo/worktrees/0z9augi8/repair-typescript-skill-entrypoint`
-- **Card 003 is implemented; two review rounds repaired.** The adapter loads
+- **Card 003 is implemented; three review rounds repaired.** The adapter loads
   its package-local `references/modes/typescript-quality-audit.md`; no router
   policy was copied and the adapter stays within its thin budget.
 - **Proof added:** package QA enforces a closed thin-adapter grammar — the
   adapter must equal the canonical form derived from the manifest
   `explicit_audit_repair` entrypoint and the `agents/openai.yaml` command
-  name, and the entrypoint file must exist inside the installed package root.
-  Seven in-memory negatives cover external-URL, spaced-path, unquoted,
-  missing, absolute, escaping, and disagreement forms plus an absent
-  entrypoint file; the installed-route proof runs package QA on a
-  materialized installed copy and proves four corrupted copies fail closed.
+  name, the policy must equal its own closed exact-command form, and the
+  entrypoint file must exist inside the installed package root. Seven
+  grammar negatives cover external-URL, spaced-path, unquoted, missing,
+  absolute, escaping, and disagreement forms; one existence negative covers
+  an absent entrypoint file — eight adapter negatives total — and one
+  exact-command policy negative covers a suffixed command. The
+  installed-route proof runs package QA on a materialized installed copy
+  (clean policy positive) and proves five corrupted copies fail closed.
 - **Replacement identities:** tree
-  `sha256:99c82da3c90a0a1c352917221ff48ea9d607222b8f01ce424ba08d24afa3de74`;
+  `sha256:259cccdbacd7e2e293389efaf72cab005d0c275bd7cb600c99f30bfbfe071843`;
   manifest
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
   (unchanged; manifest bytes are untouched).
