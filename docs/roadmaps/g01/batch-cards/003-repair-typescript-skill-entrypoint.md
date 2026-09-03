@@ -74,27 +74,30 @@ reproduced the absent `references/router.md` load from a materialized 21-file
 mode directly. No router policy was copied; the adapter stays a 706-byte
 pointer to the manifest entrypoint.
 
-`check-typescript-quality.rhai` now scans the whole adapter text — not only
-backtick-quoted spans — for path-shaped tokens, rejects absolute and escaping
-forms, resolves each against the installed package root, and requires the
-manifest `explicit_audit_repair` entrypoint among them. Five in-memory
-negatives cover missing, unquoted missing, absolute, escaping, and
-manifest/adapter-disagreement paths. `prove-installed-invocation.sh` runs
-package QA on a materialized installed copy and proves two corrupted copies
-fail closed with the exact closure message: one whose entrypoint is rewritten
-to `references/router.md`, and the review counterexample that appends an
-unquoted `references/router.md` load to an intact adapter.
+`check-typescript-quality.rhai` no longer pattern-matches adapter prose. It
+enforces a closed thin-adapter grammar: the adapter must equal a canonical
+form built from the manifest's `explicit_audit_repair` entrypoint and the
+command name that `agents/openai.yaml` invokes, and the entrypoint file must
+exist inside the installed package root. Any extra load, reference, or prose
+fails closed. Seven in-memory negatives cover the two round-2 counterexamples
+(external-URL and spaced-path extra loads), the round-1 unquoted extra load,
+missing, absolute, escaping, and manifest/adapter disagreement, plus a
+grammar-valid adapter whose entrypoint file is absent from the installed
+copy. `prove-installed-invocation.sh` runs package QA on a materialized
+installed copy and proves four corrupted copies fail closed with the exact
+grammar message: rewritten entrypoint, unquoted extra load, external-URL
+extra load, and spaced extra load.
 
-Review round: the orchestrator's exact-head review of `ab13058` found the
-closure oracle only inspected backtick-quoted spans, so an unquoted absent
-path passed QA. The scan boundary was repaired to complete-form extraction
-with no backtick dependence; the counterexample now fails with
-`adapter reference is missing from the installed package`.
+Review round 2: the orchestrator's exact-head review of `148f582` found the
+whole-text tokenizer still recognized only strings already matching its safe
+path regex, so external-URL and spaced-path extra loads disappeared instead
+of failing closed. Reproduced from fresh archives of that head, then the
+heuristic was replaced by the closed grammar above.
 
 Replacement identities:
 
 - package-tree digest
-  `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`
+  `sha256:99c82da3c90a0a1c352917221ff48ea9d607222b8f01ce424ba08d24afa3de74`
   (verified against the committed tree at the repair head; an intermediate
   staged-copy digest polluted by runtime `.effigy` state was discarded)
 - manifest digest

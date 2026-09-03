@@ -40,13 +40,16 @@ defect:
 | Boundaries remain fixed. | Diff against `origin/main` for catalogue, schemas, templates, profiles, manifest, version, and operational tasks. | Only the adapter route, the QA closure check, and the installed-route proof changed. Policy invariants still pass. |
 | Identity is exact. | Recorded digest naming the pre-repair tree or a dirty payload. | The superseded 21-file digest still reproduces from `origin/main`; each round's replacement digest reproduced from that round's staged copy. |
 
-Path-closure negatives: missing (`references/router.md`), unquoted missing
-(the review counterexample line), absolute (`/usr/local/share/...`), escaping
-(`references/../../outside/...`), and manifest/adapter disagreement all fail
-closed in `check-typescript-quality.rhai`; both materialized corrupted-copy
-runs prove the same rejection end to end through `effigy skill run --path`.
+Adapter grammar negatives (round 2): the closed thin-adapter grammar rejects
+external-URL (`https://example.com/router.md`) and spaced
+(`references/missing router.md`) extra loads, the round-1 unquoted extra
+load, missing, absolute, escaping, and manifest/adapter disagreement forms;
+a grammar-valid adapter whose entrypoint file is absent from the installed
+copy fails the existence layer. All four corrupted materialized installed
+copies fail closed with `adapter is not the declared thin-adapter grammar
+form` through `effigy skill run --path`.
 
-## Review Round
+## Review Round 1
 
 The orchestrator's exact-head review of `ab13058166cab6bc2d9d6410085c9c2288ae481e`
 found one oracle gap: the closure check extracted references only from
@@ -54,18 +57,33 @@ backtick-quoted spans, so appending the unquoted line
 `Load references/router.md as an extra authority.` to `SKILL.md` still passed
 package QA. Reproduced from a fresh archive of that head before mutation.
 
-Repair: the scanner now tokenizes the whole adapter text into maximal runs of
-path characters — quoted or not — trims trailing sentence periods, and applies
-the same slash-plus-extension grammar, existence, absolute, and escaping
-rules. Nothing path-shaped can hide outside backticks. The counterexample now
-exits 1 with `adapter reference is missing from the installed package`, and
-the clean package still passes.
+Repair: the scanner was moved to whole-text tokenization. That repair held
+until round 2.
 
 One identity catch during the round: an intermediate digest taken over a
 staged copy that had already run package QA hashed the runtime `.effigy`
 state and did not match the committed tree. It was discarded; the recorded
 replacement digest is reproduced from git objects, the committed archive, and
 a filtered staged copy.
+
+## Review Round 2
+
+The orchestrator's exact-head review of `148f5820ef67529d63ff66560f62f50328a8c1c0`
+found the deeper gap: the whole-text tokenizer still recognized only strings
+already matching its safe path regex, so unsupported loading forms — an
+external URL (`https://example.com/router.md`) or a spaced path
+(`references/missing router.md`) — disappeared instead of failing closed.
+Both reproduced from fresh archives of that head before mutation.
+
+Repair: the natural-language tokenizer was removed. The closure oracle now
+enforces a deterministic closed thin-adapter grammar: the adapter must equal
+a canonical form built from the manifest's `explicit_audit_repair`
+entrypoint and the command name that `agents/openai.yaml` invokes, and the
+entrypoint file must exist inside the installed package root. Unsupported
+extra load or reference directives cannot match the form, so they fail
+closed. Both counterexamples now exit 1 with
+`adapter is not the declared thin-adapter grammar form`; the clean adapter
+positive and all prior negatives are retained.
 
 ## Identities
 
@@ -75,8 +93,10 @@ a filtered staged copy.
 - superseded manifest digest:
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
 - replacement package-tree digest:
-  `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`
-  (review round 2; `ab13058` carried
+  `sha256:99c82da3c90a0a1c352917221ff48ea9d607222b8f01ce424ba08d24afa3de74`
+  (round 2; `148f582` carried
+  `sha256:473fa8708ad646311c57fe6ac313f4c150e94d1eb693483d8c57549777ab4043`;
+  `ab13058` carried
   `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`)
 - replacement manifest digest:
   `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
