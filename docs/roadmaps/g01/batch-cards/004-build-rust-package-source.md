@@ -1,10 +1,10 @@
 # 004 — Build Rust Package Source
 
-Status: planned; not ready
+Status: ready
 Owner: repo maintainers
 Updated: 2026-09-03
 Upstream authority: Northstar card `g02.048/119`
-Depends on: local card 003 and Northstar card `g02.048/121`
+Depends on: local card 003 and Northstar card `g02.048/121` (both complete)
 
 ## Objective
 
@@ -14,8 +14,8 @@ meaning.
 
 ## Source Boundary
 
-Northstar's readiness evidence freezes 54 tracked files at
-`4f534b204211b241fd5da17f4a7b845f969b0bc`: 24 Rust references, two modes,
+Northstar's post-repin readiness evidence freezes 54 tracked files at
+`69e4d5dea3daa4f6133d7363d39c1a0f72848435`: 24 Rust references, two modes,
 two Rhai scripts, 22 Cargo-engine files, one explicit command skill, and three
 templates. The SHA-256 of its sorted GNU `sha256sum` listing is
 `2f8515afce33c87e9b38f103b9c41440ed7f182142fc2c65fed4d10d9264040b`.
@@ -61,13 +61,14 @@ meaning, remediation authority, or evidence lifecycle. Do not merge.
 
 ## Stop Conditions
 
-- TypeScript card 003 or Northstar card 121 is not merged;
-- Northstar card 119 is not refreshed ready against the replacement identity;
+- the pinned Northstar source commit or 54-file listing digest cannot be
+  reproduced;
 - extraction needs a language-specific protocol change;
 - policy, evidence, engine lifecycle, or MSRV ownership would change;
 - validation changes the plan.
 
 ## Next Task
 
-Wait. The Northstar orchestrator must clear the two prerequisites and issue a
-fresh committed handoff before implementation starts.
+Execute the committed Rust package-source handoff. Stop at a reviewable
+immutable candidate; Northstar registry promotion and the Convergence canary
+remain later serial lanes.

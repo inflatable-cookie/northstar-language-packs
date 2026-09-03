@@ -7,6 +7,6 @@
 
 ## Next Task
 
-Review and merge the card `g01.001/003` PR, then return its replacement
-identity to Northstar card 121 for registry repinning. Keep `g01.002/004`
-blocked until that repin.
+Execute ready card `g01.002/004` from Northstar `69e4d5d`. Stop after a
+reviewed immutable Rust package candidate and return its identities to the
+Northstar orchestrator.

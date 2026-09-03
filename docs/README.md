@@ -14,5 +14,6 @@ owned package work.
 
 ## Next Task
 
-Review the card 003 standalone adapter repair PR. Rust source card 004 remains
-blocked until Northstar repins the replacement identity.
+Execute ready Rust source card 004 from the post-repin Northstar source pin.
+Registry promotion and the Convergence canary remain Northstar-owned later
+lanes.

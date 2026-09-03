@@ -12,6 +12,5 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Accept and merge card 003's standalone TypeScript adapter repair PR. After
-merge, return its immutable identity to Northstar for registry repinning.
-Do not start Rust card 004 yet.
+Execute card 004's Rust package-source candidate from Northstar `69e4d5d` and
+the frozen 54-file inventory. Stop before Northstar registry promotion.
