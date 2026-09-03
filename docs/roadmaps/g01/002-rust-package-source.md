@@ -1,6 +1,6 @@
 # 002 — Rust Package Source
 
-Status: active; card 004 ready
+Status: active; card 004 candidate ready for review
 Owner: repo maintainers
 Upstream authority: Northstar `g02.048/119`
 
@@ -18,5 +18,5 @@ Cargo-native engine.
 
 ## Next Task
 
-Execute card 004 from the committed handoff. Stop after exact-head review and
-merge of the immutable package candidate; return its identities to Northstar.
+Review-only pull request opened for card 004. Stop for review and merge of the
+immutable package candidate; return its identities to Northstar.

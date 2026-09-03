@@ -7,6 +7,6 @@
 
 ## Next Task
 
-Execute ready card `g01.002/004` from Northstar `69e4d5d`. Stop after a
-reviewed immutable Rust package candidate and return its identities to the
+Review-only pull request opened for ready card `g01.002/004`. Stop after review
+and merge of the immutable Rust package candidate; return its identities to the
 Northstar orchestrator.

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Northstar Rust Audit"
+  short_description: "Audit and repair Rust quality explicitly."
+  default_prompt: "Use $northstar-rust-audit to audit and repair the requested Rust scope."
+policy:
+  allow_implicit_invocation: false

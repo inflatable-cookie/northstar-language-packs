@@ -1,6 +1,6 @@
 # 004 — Build Rust Package Source
 
-Status: ready
+Status: completed; candidate ready for review
 Owner: repo maintainers
 Updated: 2026-09-03
 Upstream authority: Northstar card `g02.048/119`
@@ -39,14 +39,14 @@ meaning, remediation authority, or evidence lifecycle. Do not merge.
 
 ## Acceptance
 
-- [ ] package inventory reconciles every frozen Rust source path exactly once;
-- [ ] no TypeScript payload or root-only router surface is present;
-- [ ] everyday and explicit-audit routes remain distinct and package-local;
-- [ ] revision-E fixtures and existing evidence compatibility pass;
-- [ ] Cargo engine source/binary identity and cache behavior remain exact;
-- [ ] source/staged parity and declared self-check pass;
-- [ ] package QA, repository QA, and `git diff --check` pass;
-- [ ] replacement commit, tree digest, manifest digest, and engine identity are
+- [x] package inventory reconciles every frozen Rust source path exactly once;
+- [x] no TypeScript payload or root-only router surface is present;
+- [x] everyday and explicit-audit routes remain distinct and package-local;
+- [x] revision-E fixtures and existing evidence compatibility pass;
+- [x] Cargo engine source/binary identity and cache behavior remain exact;
+- [x] source/staged parity and declared self-check pass;
+- [x] package QA, repository QA, and `git diff --check` pass;
+- [x] replacement commit, tree digest, manifest digest, and engine identity are
   recorded honestly.
 
 ## Review Oracle
@@ -69,6 +69,5 @@ meaning, remediation authority, or evidence lifecycle. Do not merge.
 
 ## Next Task
 
-Execute the committed Rust package-source handoff. Stop at a reviewable
-immutable candidate; Northstar registry promotion and the Convergence canary
-remain later serial lanes.
+Review-only pull request opened for card 004. Stop for review; Northstar
+registry promotion and Convergence canary follow after merge.
