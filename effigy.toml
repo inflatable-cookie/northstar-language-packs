@@ -27,5 +27,9 @@ section = "Vision Artifacts"
   { task = "qa:northstar:headings" },
   { task = "qa:northstar:roadmap-headings" },
 ]
+"qa:packages:identities" = "scripts/verify-package-identities.sh"
+"qa:packages" = [
+  { task = "qa:packages:identities" },
+]
 health = [{ task = "qa:docs:agent-defaults" }]
-qa = [{ task = "qa:docs" }, { task = "qa:northstar" }]
+qa = [{ task = "qa:docs" }, { task = "qa:northstar" }, { task = "qa:packages" }]

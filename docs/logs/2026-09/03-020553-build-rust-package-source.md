@@ -35,7 +35,7 @@ Branch: `worker/build-rust-package-source`.
 | --- | --- | --- |
 | Source inventory is exact. | SHA-256 of sorted GNU `sha256sum` listing of 54 frozen paths reproduced from `../northstar` at `69e4d5d`. | Source listing digest `2f8515afce33c87e9b38f103b9c41440ed7f182142fc2c65fed4d10d9264040b`. |
 | Source parity is deterministic. | 54 source files verified against frozen Northstar commit `69e4d5d`: 44 byte-exact, 4 EOF-newline-normalized, 6 package-adapted with exact destination SHA-256 identities; unrecorded rewrite in byte-exact and arbitrary semantic drift in package-adapted both fail closed. | Deterministic source parity verified; both mutation negatives rejected. |
-| Package tree identity is canonical. | Spec-034 length-framed regular-file stream computed across all 59 package files; mutated file and stray file injection tested. | Canonical package-tree digest `sha256:7333f887896c032ab779f8fe2f55a21db333e14a642683442e2f93148f127864`; mutation negatives fail closed. |
+| Package tree identity is canonical. | Raw Spec-034 length-framed regular-file stream computed across all 59 package files without internal normalization; bound by repository release oracle `scripts/verify-package-identities.sh` and wired into package proof; mutated file and stray file injection tested. | Canonical package-tree digest `sha256:e5cf9c5da4a30c0f5164f2ea0c5e9d87d544c0c32f09f3c139a386c56154dba0`; mutation negatives fail closed. |
 | Package is isolated. | Live inventory checked for unexpected files, TypeScript payloads, or sibling contamination. | Exact 59-file package inventory; no sibling content. |
 | Sibling presence is mandatory. | Sibling absence tested in isolated temp copy without sibling repository. | Fails closed immediately (exit code 1) without emitting success claims. |
 | Workflows remain distinct. | Projections (`strict-authoring.json`, `strict-audit.json`), routing fixtures, and authoring workflow cases validated. | Everyday authoring and explicit audit remain distinct and package-local. |
@@ -56,9 +56,9 @@ Branch: `worker/build-rust-package-source`.
 - package file count:
   `59`
 - canonical package-tree digest (spec-034 length-framed stream):
-  `sha256:7333f887896c032ab779f8fe2f55a21db333e14a642683442e2f93148f127864`
+  `sha256:e5cf9c5da4a30c0f5164f2ea0c5e9d87d544c0c32f09f3c139a386c56154dba0`
 - package-tree listing digest (59 files, GNU sha256sum listing):
-  `sha256:38d021581fedab0599d189a3e08cb8b602d32390ac85aad58006273aba9115b1`
+  `sha256:6e6884fb905ff838a496f70cba0f1c5797be6f9eed2863f46b031069f0c99529`
 - manifest digest (`northstar-package.json`):
   `sha256:dd71d04efd67cc7805f417a79666dd920ea1811ee252d941108dfbeca8aab612`
 - manifest raw SHA-256:

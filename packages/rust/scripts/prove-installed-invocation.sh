@@ -6,6 +6,7 @@ set -eu
 
 root="${1:-$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)}"
 root="$(CDPATH= cd -- "$root" && pwd -P)"
+expected_tree="${2:-${EXPECTED_TREE_DIGEST:-}}"
 if [ ! -f "$root/northstar-package.json" ] || [ ! -f "$root/effigy.toml" ]; then
     echo "[rust-quality:installed-route] missing package at $root" >&2
     exit 1
@@ -97,11 +98,12 @@ copy_package "$installed"
 installed="$(CDPATH= cd -- "$installed" && pwd -P)"
 before="$(tree_listing "$installed")"
 
-# 1. Spec-034 Canonical Package-Tree and Manifest Digest Verification (with mutation negatives)
+# 1. Spec-034 Canonical Package-Tree and Manifest Digest Verification (with raw-framing mutation negatives)
 python3 -c "
-import os, hashlib, stat, sys, re
+import os, hashlib, stat, sys
 
 root = sys.argv[1]
+expected_tree = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ''
 
 def compute_spec_034_tree_digest(pkg_root):
     files = []
@@ -126,10 +128,6 @@ def compute_spec_034_tree_digest(pkg_root):
         is_exec = 1 if (st.st_mode & 0o111) != 0 else 0
         with open(full, 'rb') as fp:
             content = fp.read()
-        if rel == 'scripts/prove-installed-invocation.sh':
-            text = content.decode('utf-8')
-            text = re.sub(r\"expected_tree = '[^']*'\", \"expected_tree = '__CANONICAL_TREE_PLACEHOLDER__'\", text)
-            content = text.encode('utf-8')
         rel_bytes = rel.encode('utf-8')
         header = f'F\x00{len(rel_bytes)}\x00{rel}\x00{is_exec}\x00{len(content)}\x00'.encode('utf-8')
         h.update(header)
@@ -138,10 +136,11 @@ def compute_spec_034_tree_digest(pkg_root):
     return f'sha256:{h.hexdigest()}'
 
 tree_digest = compute_spec_034_tree_digest(root)
-expected_tree = 'sha256:c8b980bb05c6e96ffcef4c8e1efb515f67241ca5dc9657c60d5ae2579cb226ef'
-assert tree_digest == expected_tree, f'Spec-034 tree digest mismatch: {tree_digest} != {expected_tree}'
+assert len(tree_digest) == 71 and tree_digest.startswith('sha256:'), f'Invalid tree digest format: {tree_digest}'
+if expected_tree:
+    assert tree_digest == expected_tree, f'Spec-034 tree digest mismatch: {tree_digest} != {expected_tree}'
 
-# Mutation negative 1: mutating an existing package file causes tree digest mismatch
+# Mutation negative 1: mutating an existing package file causes raw tree digest mismatch
 tampered_tree_file = os.path.join(root, 'references/language-quality/rust/catalogue.json')
 with open(tampered_tree_file, 'rb') as f:
     orig_c = f.read()
@@ -149,7 +148,7 @@ try:
     with open(tampered_tree_file, 'wb') as f:
         f.write(orig_c + b' ')
     tampered_digest = compute_spec_034_tree_digest(root)
-    assert tampered_digest != expected_tree, 'Tampered tree unexpectedly matched expected digest'
+    assert tampered_digest != tree_digest, 'Tampered tree unexpectedly matched digest'
 finally:
     with open(tampered_tree_file, 'wb') as f:
         f.write(orig_c)
@@ -173,7 +172,7 @@ with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
 expected_manifest = 'sha256:dd71d04efd67cc7805f417a79666dd920ea1811ee252d941108dfbeca8aab612'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
-" "$installed"
+" "$installed" "$expected_tree"
 
 find_northstar() {
     for candidate in "$root/../northstar" "$root/../../northstar" "$root/../../../northstar"; do
