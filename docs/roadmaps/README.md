@@ -7,5 +7,6 @@
 
 ## Next Task
 
-Execute ready card `g01.001/003`. Keep `g01.002/004` blocked until Northstar
-repins the accepted replacement identity.
+Review and merge the card `g01.001/003` PR, then return its replacement
+identity to Northstar card 121 for registry repinning. Keep `g01.002/004`
+blocked until that repin.

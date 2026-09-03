@@ -1,6 +1,6 @@
 # 003 — Repair TypeScript Skill Entrypoint
 
-Status: ready
+Status: implemented; reviewable PR open; awaiting orchestrator exact-head review
 Owner: repo maintainers
 Updated: 2026-09-03
 Upstream authority: Northstar card `g02.048/121` at
@@ -35,17 +35,17 @@ Do not merge from the worker lane.
 
 ## Acceptance
 
-- [ ] `SKILL.md` loads only package-local files that exist in the installed
+- [x] `SKILL.md` loads only package-local files that exist in the installed
   payload;
-- [ ] its route matches manifest workflow `explicit_audit_repair`;
-- [ ] `agents/openai.yaml` still invokes `$northstar-typescript-audit` and
+- [x] its route matches manifest workflow `explicit_audit_repair`;
+- [x] `agents/openai.yaml` still invokes `$northstar-typescript-audit` and
   implicit activation remains disabled;
-- [ ] missing, absolute, and escaping adapter paths are rejected by package QA;
-- [ ] policy, package version, manifest meaning, and operational tasks remain
+- [x] missing, absolute, and escaping adapter paths are rejected by package QA;
+- [x] policy, package version, manifest meaning, and operational tasks remain
   unchanged;
-- [ ] source/staged parity, direct self-check, installed setup/record proof,
+- [x] source/staged parity, direct self-check, installed setup/record proof,
   package QA, repository QA, and `git diff --check` pass;
-- [ ] replacement immutable identities are recorded honestly.
+- [x] replacement immutable identities are recorded honestly.
 
 ## Review Oracle
 
@@ -65,7 +65,41 @@ Do not merge from the worker lane.
 - a package version decision is required;
 - validation changes the plan.
 
-## Next Task
+## Completion Notes
 
-Open a review-only source PR. After acceptance and merge, return the replacement
-identity to the Northstar orchestrator for registry repinning.
+Worker `worker/repair-typescript-skill-entrypoint` in Paseo worktree
+`/Users/tom/.paseo/worktrees/0z9augi8/repair-typescript-skill-entrypoint`
+reproduced the absent `references/router.md` load from a materialized 21-file
+`origin/main` package, then made the adapter load its declared package-local
+mode directly. No router policy was copied; the adapter stays a 706-byte
+pointer to the manifest entrypoint.
+
+`check-typescript-quality.rhai` now extracts every backtick-quoted path-like
+adapter reference, rejects absolute and escaping forms, resolves each against
+the installed package root, and requires the manifest
+`explicit_audit_repair` entrypoint among them. Four in-memory negatives cover
+missing, absolute, escaping, and manifest/adapter-disagreement paths.
+`prove-installed-invocation.sh` runs package QA on a materialized installed
+copy and proves a corrupted copy whose adapter names `references/router.md`
+fails closed with the exact closure message.
+
+Replacement identities:
+
+- package-tree digest
+  `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`
+- manifest digest
+  `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
+  (unchanged; `northstar-package.json` bytes are untouched)
+
+Superseded identities remain card 002's `d18dc33b` /
+`sha256:767671328a32f45610aba4462df7b3bdc87c62fd0ab2af8e6aee866aa15a334a` /
+`sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`,
+reproduced independently from `origin/main` before and after the repair. The
+replacement source commit is this PR head after push.
+
+Evidence: `docs/logs/2026-09/03-011349-repair-typescript-skill-entrypoint.md`.
+
+## Next Task
+Orchestrator exact-head review owns acceptance and merge. After merge, the
+replacement identity returns to Northstar card `g02.048/121` for registry
+repinning. Card 004 stays blocked until that repin.

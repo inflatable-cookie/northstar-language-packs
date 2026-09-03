@@ -14,5 +14,5 @@ owned package work.
 
 ## Next Task
 
-Execute the ready standalone TypeScript adapter repair in card 003. Rust source
-card 004 remains blocked until Northstar repins the replacement identity.
+Review the card 003 standalone adapter repair PR. Rust source card 004 remains
+blocked until Northstar repins the replacement identity.

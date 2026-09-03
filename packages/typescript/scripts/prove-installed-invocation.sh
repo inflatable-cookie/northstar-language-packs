@@ -26,12 +26,13 @@ mkdir -p "$installed" "$consumer/src" "$consumer/skills/northstar/references/lan
 
 copy_package() {
     # POSIX tree copy that keeps the executable bit and skips runtime receipts.
+    dest="$1"
     (CDPATH= cd -- "$root" && find . -type f ! -path './.effigy/*' | sort | while IFS= read -r rel; do
-        dest="$installed/$rel"
-        mkdir -p "$(dirname "$dest")"
-        cp "$rel" "$dest"
+        target="$dest/$rel"
+        mkdir -p "$(dirname "$target")"
+        cp "$rel" "$target"
     done)
-    chmod +x "$installed/scripts/self-check.sh" "$installed/scripts/prove-installed-invocation.sh"
+    chmod +x "$dest/scripts/self-check.sh" "$dest/scripts/prove-installed-invocation.sh"
 }
 
 file_digest() {
@@ -80,7 +81,7 @@ run_capture() {
     return "$status"
 }
 
-copy_package
+copy_package "$installed"
 installed="$(CDPATH= cd -- "$installed" && pwd -P)"
 before="$(tree_listing "$installed")"
 catalogue_digest="$(file_digest "$installed/references/language-quality/typescript/catalogue.json")"
@@ -265,4 +266,36 @@ if [ "$before" != "$after" ]; then
     exit 1
 fi
 
-echo "TypeScript quality installed route: OK (public skill-run setup/record, relay sentinel, decoy catalogue ignored)"
+# Adapter path closure: package QA passes on a materialized installed copy and
+# fails closed when the adapter names a path outside the installed package.
+staged="$work/staged"
+broken="$work/broken"
+copy_package "$staged"
+if ! run_capture "$transcripts/staged-qa.txt" \
+    effigy skill run --path "$staged" check:typescript-quality --repo "$consumer"
+then
+    echo "[typescript-quality:installed-route] installed-copy package QA failed" >&2
+    cat "$transcripts/staged-qa.txt" >&2
+    exit 1
+fi
+require_file_contains "$transcripts/staged-qa.txt" \
+    "4 adapter path-closure negative paths" \
+    "installed-copy adapter closure check"
+
+copy_package "$broken"
+sed 's|references/modes/typescript-quality-audit.md|references/router.md|' \
+    "$broken/SKILL.md" > "$broken/SKILL.md.next"
+mv "$broken/SKILL.md.next" "$broken/SKILL.md"
+if run_capture "$transcripts/broken-adapter.txt" \
+    effigy skill run --path "$broken" check:typescript-quality --repo "$consumer"
+then
+    echo "[typescript-quality:installed-route] adapter naming an absent path unexpectedly passed package QA" >&2
+    cat "$transcripts/broken-adapter.txt" >&2
+    exit 1
+fi
+require_file_contains "$transcripts/broken-adapter.txt" \
+    "adapter reference is missing from the installed package" \
+    "adapter path closure"
+
+
+echo "TypeScript quality installed route: OK (public skill-run setup/record, relay sentinel, decoy catalogue ignored, adapter path closure enforced)"

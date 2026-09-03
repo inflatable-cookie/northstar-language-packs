@@ -1,6 +1,6 @@
 # 001 — TypeScript Package Source
 
-Status: active; card 003 ready for standalone adapter repair
+Status: active; card 003 implemented, reviewable PR open
 Owner: repo maintainers
 Upstream authority: Northstar `g02.048/118` at
 `3f360be97759abf658867e062a30edc3b9c8c597`
@@ -18,10 +18,12 @@ Jetstream activation.
 - `batch-cards/002-repair-installed-typescript-invocation.md` repaired the
   installed setup/record invocation and recorded the replacement identity.
   PR 2 merged as `d18dc33b`; Northstar pinned and accepted that identity.
-- `batch-cards/003-repair-typescript-skill-entrypoint.md` repairs the remaining
-  agent-facing adapter reference before Rust package work starts.
+- `batch-cards/003-repair-typescript-skill-entrypoint.md` made the
+  agent-facing adapter load its package-local mode and proved installed-copy
+  path closure. Its reviewable PR carries the replacement identity.
 
 ## Next Task
 
-Execute card 003. Stop at a reviewable source PR with the replacement immutable
-identity; Northstar owns its later registry repin.
+After card 003's exact-head acceptance and merge, return the replacement
+immutable identity to Northstar card 121 for registry repinning. Card 004
+stays blocked until then.

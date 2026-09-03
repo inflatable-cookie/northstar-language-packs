@@ -5,7 +5,7 @@ handoff_mode: worker-pr-loop
 worker_mode: implementation
 dispatch_authority: orchestrator
 handoff: single-file-path-only
-status: ready-to-launch
+status: awaiting-review
 owner: repo maintainers
 created: 2026-09-03
 updated: 2026-09-03
@@ -33,49 +33,28 @@ is honest and its replacement identity is reviewed and repinned.
 ## Current State
 
 - **Repository:** `/Users/tom/Dev/projects/northstar-language-packs`
-- **Planning branch:** `main`
-- **Planning base commit:** `71a64562f17a4abc4dbef98d13f90ab72e76c9e5`
-- **Pushed main verification:** local `HEAD` equals `origin/main` at that commit
-- **Planning checkout:** clean
-- **Worker mode:** implementation worker dispatched by the orchestrator; this
-  handoff activates the worker-only worktree preflight
-- **Planning artifacts included at the base:** card `g01.001/003`, milestone
-  `g01.001`, and Northstar card `g02.048/121`
+- **Planning base:** `71a64562f17a4abc4dbef98d13f90ab72e76c9e5`; worker verified
+  `HEAD == origin/main` at `87d3394a` and base ancestry before edits
 - **Worker branch:** `worker/repair-typescript-skill-entrypoint`
-- **Worker worktree:** Paseo-managed; accept the launcher's actual registered
-  worktree path
-- **Worktree creation command:** Paseo `branch-off` from `origin/main`
-- **Required sibling worktree links:** `northstar` ->
-  `/Users/tom/Dev/projects/northstar`, beside the worker worktree; read-only
-- **Active spec lane:** Northstar spec 034
-- **Roadmap milestone:** `docs/roadmaps/g01/001-typescript-package-source.md`
-- **Ready cards, in order:**
-  `docs/roadmaps/g01/batch-cards/003-repair-typescript-skill-entrypoint.md`
-- **Allowed runway:** card 003 only
-- **Remaining card budget:** one card
-- **Dispatch topology:** sole ready lane; Rust card 004 is serial behind this
-  source repair and Northstar's replacement registry pin
-- **Parallel safety check:** no other package-source lane is ready
-- **Surfaces this lane owns:** `packages/typescript/**`, card 003, milestone
-  001, one dated log, this handoff, and package-source front doors
-- **Integration ownership:** worker reconciles its local closeout; Northstar
-  registry and card 121 remain orchestrator-owned
-- **Canonical refs:** `docs/architecture/system-architecture.md`;
-  `docs/contracts/001-working-rules.md`; Northstar
-  `docs/contracts/004-language-quality-pack.md` and
-  `docs/specs/034-modular-language-quality-packages.md`
-- **Review oracle:** card 003
-- **Model capability profile:** ordinary bounded implementation; economical
-  non-frontier route with exact-head frontier review retained by orchestrator
-- **Frontier-worker justification:** none
-- **Tool/runtime restrictions:** do not edit the `northstar` sibling, registry,
-  Jetstream, Rust package planning, CI, or release state
-- **Required validation:** package QA, installed-copy path-closure negatives,
-  direct self-check, existing installed setup/record proof, repository
-  `effigy qa`, and `git diff --check origin/main...HEAD`
+- **Worker worktree:**
+  `/Users/tom/.paseo/worktrees/0z9augi8/repair-typescript-skill-entrypoint`
+- **Card 003 is implemented.** The adapter loads its package-local
+  `references/modes/typescript-quality-audit.md`; no router policy was copied
+  and the adapter stays within its thin budget.
+- **Proof added:** package QA rejects missing, absolute, escaping, and
+  manifest/adapter-disagreement adapter paths; the installed-route proof runs
+  package QA on a materialized installed copy and proves a corrupted copy
+  fails closed.
+- **Replacement identities:** tree
+  `sha256:ee2f52e621f45c8e23034b3b1084ef5ab88437967d462607872f9a0dc90cec2a`;
+  manifest
+  `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
+  (unchanged; manifest bytes are untouched).
+- **Evidence:**
+  `docs/logs/2026-09/03-011349-repair-typescript-skill-entrypoint.md`.
+- **Northstar sibling, registry, Jetstream, and Rust planning were not edited.**
 - **PR base/head:** `main` <- `worker/repair-typescript-skill-entrypoint`
-- **PR URL:** pending
-- **Review state:** awaiting worker PR
+- **Review state:** awaiting orchestrator exact-head review
 - **Merge path:** orchestrator after accepted review of the current head and
   passing required checks
 
@@ -107,9 +86,9 @@ is honest and its replacement identity is reviewed and repinned.
 
 ## Suggested Next Move
 
-Run the worker preflight before broad reads. Then read `AGENTS.md`, card 003,
-milestone 001, and the named architecture/contract refs. Reproduce the absent
-path from a materialized package before editing.
+Orchestrator reviews the exact head. After acceptance and merge, the
+replacement identity returns to Northstar card 121 for registry repinning.
+Card 004 stays blocked until that repin.
 
 ## Completion Protocol
 

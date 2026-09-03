@@ -384,6 +384,70 @@ fn validate_runtime_surface(package_root) {
     require(fs::file_size(adapter_path) <= 1200, "TypeScript adapter exceeds thin-adapter budget");
 }
 
+fn adapter_path_references(adapter) {
+    let references = [];
+    let parts = adapter.split("`");
+    for index in 0..parts.len() {
+        if index % 2 == 1 &&
+            parts[index].contains("/") &&
+            regex::is_match("^(\\./|\\.\\./|/)?([A-Za-z0-9._-]+/)*[A-Za-z0-9._-]+\\.[A-Za-z0-9]+$", parts[index]) {
+            references.push(parts[index]);
+        }
+    }
+    references
+}
+
+fn validate_adapter_closure(package_root, adapter, manifest) {
+    let references = adapter_path_references(adapter);
+    require(references.len() > 0, "adapter loads no package-local path reference");
+    for reference in references {
+        require(!str::starts_with(reference, "/"),
+            "adapter reference is absolute: " + reference);
+        require(!reference.contains(".."),
+            "adapter reference escapes the package root: " + reference);
+        require(fs::is_file(path::join(package_root, reference)),
+            "adapter reference is missing from the installed package: " + reference);
+    }
+    let entrypoint = manifest["entrypoints"]["explicit_audit_repair"];
+    require(references.contains(entrypoint),
+        "adapter does not load the manifest explicit_audit_repair entrypoint: " + entrypoint);
+}
+
+fn expect_closure_rejection(package_root, label, adapter, manifest, expected) {
+    let rejected = false;
+    try {
+        validate_adapter_closure(package_root, adapter, manifest);
+    } catch (error) {
+        rejected = true;
+        require(error.to_string().contains(expected), label + " rejected for wrong reason: " + error);
+    }
+    require(rejected, label + " unexpectedly passed");
+}
+
+fn adapter_closure_self_test(package_root, manifest) {
+    let adapter = fs::read_file(path::join(package_root, "SKILL.md"));
+    validate_adapter_closure(package_root, adapter, manifest);
+
+    let entrypoint = "`references/modes/typescript-quality-audit.md`";
+    let missing = str::replace(adapter, entrypoint, "`references/router.md`");
+    expect_closure_rejection(package_root, "missing adapter path", missing, manifest,
+        "missing from the installed package");
+
+    let absolute = str::replace(adapter, entrypoint,
+        "`/usr/local/share/northstar/references/modes/typescript-quality-audit.md`");
+    expect_closure_rejection(package_root, "absolute adapter path", absolute, manifest, "absolute");
+
+    let escaping = str::replace(adapter, entrypoint,
+        "`references/../../outside/typescript-quality-audit.md`");
+    expect_closure_rejection(package_root, "escaping adapter path", escaping, manifest,
+        "escapes the package root");
+
+    let disagreement = str::replace(adapter, entrypoint,
+        "`references/language-quality/typescript/audit-recording.md`");
+    expect_closure_rejection(package_root, "manifest/adapter disagreement", disagreement, manifest,
+        "does not load the manifest explicit_audit_repair entrypoint");
+}
+
 fn expect_rejection(label, catalogue, expected) {
     let rejected = false;
     try {
@@ -517,9 +581,10 @@ validate_schema(payload_root, "catalogue.schema.json");
 validate_schema(payload_root, "profile.schema.json");
 validate_templates(package_root);
 validate_runtime_surface(package_root);
+adapter_closure_self_test(package_root, manifest);
 self_test(catalogue_path, manifest_path);
 test_self_check_wrapper(package_root);
 for filename in ["audit-manifest.schema.json", "audit-unit.schema.json", "audit-result.schema.json"] {
     validate_schema(payload_root, filename);
 }
-log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest negative paths, explicit audit only)");
+log("Northstar TypeScript quality package: OK (9 normative rules, 1 evaluation signal, 3 overlays, 21-file inventory, 8 catalogue/manifest and 4 adapter path-closure negative paths, explicit audit only)");
