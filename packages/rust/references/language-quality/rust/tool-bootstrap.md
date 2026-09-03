@@ -3,7 +3,7 @@
 The agent owns this installation. Do not ask the operator to install a binary,
 edit `PATH`, or add a consumer task.
 
-The crate is `tools/rust-quality/` relative to the installed Northstar skill.
+The crate is `tools/rust-quality/` relative to the installed Rust package.
 Use a Northstar-owned cache outside the consumer repository:
 
 - macOS: `$HOME/Library/Caches/northstar/rust-quality`
@@ -15,7 +15,7 @@ cache `bin` directory to `PATH`; invoke the binary by its absolute path.
 
 ## Ensure the current payload
 
-1. Set `<crate>` to the installed skill's `tools/rust-quality` directory and
+1. Set `<crate>` to the installed package's `tools/rust-quality` directory and
    `<cache>` to the host-specific cache above.
 2. Ensure `<cache>/probe/bin/northstar-rust-quality` exists. If missing, run:
 
@@ -42,7 +42,7 @@ cache `bin` directory to `PATH`; invoke the binary by its absolute path.
    `<payload-root>/install-receipt.json`. Continue only when `current` is true
    and the embedded and source payload hashes match.
 6. Use that absolute payload binary for every operation in the audit. Re-run
-   this ensure sequence when the skill source changes. Old payload directories
+   this ensure sequence when the package source changes. Old payload directories
    are inert cache entries; do not delete them during an audit.
 
 The checksum covers `Cargo.toml`, `Cargo.lock`, `build.rs`, the diagnostic

@@ -526,6 +526,12 @@ fn validate_audit_surface(package_root) {
     for operation in ["inspect", "plan", "init", "assess", "extend", "collect", "complete", "finalize"] {
         require(recording.contains("<tool> " + operation), "Rust recording contract lacks " + operation);
     }
+    require(bootstrap.contains("The crate is `tools/rust-quality/` relative to the installed Rust package."),
+        "Rust tool bootstrap lacks installed Rust package root phrasing");
+    require(!bootstrap.contains("installed Northstar skill") &&
+        !bootstrap.contains("installed skill") &&
+        !bootstrap.contains("skill source"),
+        "Rust tool bootstrap retains stale root-dependent skill phrasing");
     require(bootstrap.contains("cargo install --locked --offline --path") &&
         bootstrap.contains("source_payload_sha256") &&
         bootstrap.contains("Never add") && bootstrap.contains("cache `bin`") && bootstrap.contains("`PATH`"),
@@ -843,7 +849,7 @@ fn expect_manifest_rejection(label, manifest, expected) {
     require(rejected, label + " unexpectedly passed");
 }
 
-fn self_test(catalogue_path, manifest_path) {
+fn self_test(package_root, catalogue_path, manifest_path) {
     let unsupported = json::read_file(catalogue_path);
     unsupported["production_profiles"] = ["ordinary", "strict"];
     expect_rejection("unsupported profile", unsupported, "only production profile");
@@ -891,6 +897,28 @@ fn self_test(catalogue_path, manifest_path) {
     let missing_workflow = json::read_file(manifest_path);
     missing_workflow["available_workflows"] = ["explicit_audit_repair"];
     expect_manifest_rejection("available workflows", missing_workflow, "available workflows drifted");
+
+    let bootstrap_path = path::join(package_root, "references/language-quality/rust/tool-bootstrap.md");
+    let original_bootstrap = fs::read_file(bootstrap_path);
+    let stale_bootstrap = str::replace(original_bootstrap, "installed Rust package", "installed Northstar skill");
+    expect_bootstrap_rejection(package_root, "stale tool-bootstrap phrasing", stale_bootstrap, "installed Rust package root phrasing");
+}
+
+fn expect_bootstrap_rejection(package_root, label, bad_text, expected) {
+    let bootstrap_path = path::join(package_root, "references/language-quality/rust/tool-bootstrap.md");
+    let original = fs::read_file(bootstrap_path);
+    fs::write_file(bootstrap_path, bad_text);
+    let rejected = false;
+    let err_msg = "";
+    try {
+        validate_audit_surface(package_root);
+    } catch (error) {
+        rejected = true;
+        err_msg = error.to_string();
+    }
+    fs::write_file(bootstrap_path, original);
+    require(rejected, label + " unexpectedly passed");
+    require(err_msg.contains(expected), label + " rejected for wrong reason: " + err_msg);
 }
 
 fn expect_candidate_rejection(label, catalogue, candidates, mapping, expected) {
@@ -999,7 +1027,7 @@ validate_activation_surface(package_root);
 validate_setup_surface(package_root);
 validate_audit_surface(package_root);
 adapter_closure_self_test(package_root, manifest);
-self_test(catalogue_path, manifest_path);
+self_test(package_root, catalogue_path, manifest_path);
 detector_self_test(catalogue, candidate_path, mapping_path);
 test_self_check_wrapper(package_root);
 
@@ -1022,4 +1050,4 @@ for filename in ["catalogue.json", "strict-authoring.json", "strict-audit.json"]
     require(!text.contains("answer_key") && !text.contains("expected_findings"), filename + " leaks prototype oracle data");
 }
 
-log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 9 catalogue/manifest, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday and explicit audit)");
+log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 10 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday and explicit audit)");
