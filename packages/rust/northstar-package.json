@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0.0",
+  "package_id": "@northstar/rust-quality",
+  "version": "0.1.0",
+  "kind": "language-quality",
+  "compatible_core_range": ">=0.2.0 <1.0.0",
+  "supported_languages": [
+    "rust"
+  ],
+  "supported_overlays": [],
+  "available_workflows": [
+    "everyday_authoring",
+    "explicit_audit_repair"
+  ],
+  "entrypoints": {
+    "everyday_authoring": "references/modes/rust-quality-authoring.md",
+    "explicit_audit_repair": "references/modes/rust-quality-audit.md"
+  },
+  "runtime_capabilities": {
+    "required_commands": [
+      "cargo",
+      "effigy",
+      "git",
+      "sh"
+    ],
+    "optional_effigy_selectors": [
+      "check:rust-quality",
+      "rust-quality:setup",
+      "test:rust-quality-setup",
+      "test:rust-quality-engine",
+      "test:rust-quality-installed-route"
+    ]
+  },
+  "self_check": {
+    "entrypoint": "scripts/self-check.sh",
+    "validated_profile_versions": [
+      "1.0.0"
+    ],
+    "validated_schema_versions": [
+      "1.0.0"
+    ],
+    "invocation": {
+      "type": "direct"
+    }
+  },
+  "evidence_providers": []
+}

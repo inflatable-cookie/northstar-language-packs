@@ -12,5 +12,5 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Execute card 004's Rust package-source candidate from Northstar `69e4d5d` and
-the frozen 54-file inventory. Stop before Northstar registry promotion.
+Review-only pull request opened for card 004's Rust package-source candidate.
+Stop after review and merge; registry promotion follows in Northstar.

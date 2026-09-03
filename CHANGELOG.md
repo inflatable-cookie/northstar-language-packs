@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add `@northstar/rust-quality` `0.1.0` source under `packages/rust` from the
+  frozen 54-file Northstar source boundary.
 - Make `@northstar/typescript-quality` `SKILL.md` load its package-local audit
   mode and prove installed-copy adapter path closure.
 - Repair `@northstar/typescript-quality` `0.1.0` so installed setup/record run

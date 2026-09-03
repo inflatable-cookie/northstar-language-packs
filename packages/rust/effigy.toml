@@ -1,0 +1,26 @@
+[manifest]
+minimum_effigy_version = "0.12.0"
+
+[catalog]
+alias = "rust-quality"
+
+[tasks]
+"check:rust-quality" = [{ rhai = "scripts/check-rust-quality.rhai" }]
+"rust-quality:setup" = [{ rhai = "scripts/rust-quality-setup.rhai" }]
+"test:rust-quality-setup" = [{ task = "rust-quality:setup self-test" }]
+"test:rust-quality-engine" = "cargo test --manifest-path tools/rust-quality/Cargo.toml"
+"test:rust-quality-installed-route" = "scripts/prove-installed-invocation.sh"
+"qa:docs:paths" = "effigy docs check paths SKILL.md northstar-package.json effigy.toml scripts/self-check.sh scripts/prove-installed-invocation.sh references/modes/rust-quality-authoring.md references/modes/rust-quality-audit.md"
+"qa:docs:workflow" = "effigy docs check contains SKILL.md --require 'Do not activate from ordinary Rust coding' --require 'Thin explicit entrypoint'"
+"qa:docs" = [
+  { task = "qa:docs:paths" },
+  { task = "qa:docs:workflow" },
+]
+health = [{ task = "check:rust-quality" }]
+qa = [
+  { task = "qa:docs" },
+  { task = "check:rust-quality" },
+  { task = "test:rust-quality-setup" },
+  { task = "test:rust-quality-engine" },
+  { task = "test:rust-quality-installed-route" },
+]

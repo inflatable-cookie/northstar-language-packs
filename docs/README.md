@@ -14,6 +14,5 @@ owned package work.
 
 ## Next Task
 
-Execute ready Rust source card 004 from the post-repin Northstar source pin.
-Registry promotion and the Convergence canary remain Northstar-owned later
-lanes.
+Review-only pull request opened for card 004 Rust package source. Registry
+promotion and the Convergence canary remain Northstar-owned later lanes.
