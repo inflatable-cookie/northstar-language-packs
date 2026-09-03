@@ -12,6 +12,6 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Execute card 003's standalone TypeScript adapter repair. After exact-head
-acceptance, return its immutable identity to Northstar for registry repinning.
+Accept and merge card 003's standalone TypeScript adapter repair PR. After
+merge, return its immutable identity to Northstar for registry repinning.
 Do not start Rust card 004 yet.

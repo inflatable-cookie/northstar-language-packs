@@ -1,6 +1,6 @@
 # 003 — Repair TypeScript Skill Entrypoint
 
-Status: ready
+Status: implemented; reviewable PR open; awaiting orchestrator exact-head review
 Owner: repo maintainers
 Updated: 2026-09-03
 Upstream authority: Northstar card `g02.048/121` at
@@ -35,17 +35,17 @@ Do not merge from the worker lane.
 
 ## Acceptance
 
-- [ ] `SKILL.md` loads only package-local files that exist in the installed
+- [x] `SKILL.md` loads only package-local files that exist in the installed
   payload;
-- [ ] its route matches manifest workflow `explicit_audit_repair`;
-- [ ] `agents/openai.yaml` still invokes `$northstar-typescript-audit` and
+- [x] its route matches manifest workflow `explicit_audit_repair`;
+- [x] `agents/openai.yaml` still invokes `$northstar-typescript-audit` and
   implicit activation remains disabled;
-- [ ] missing, absolute, and escaping adapter paths are rejected by package QA;
-- [ ] policy, package version, manifest meaning, and operational tasks remain
+- [x] missing, absolute, and escaping adapter paths are rejected by package QA;
+- [x] policy, package version, manifest meaning, and operational tasks remain
   unchanged;
-- [ ] source/staged parity, direct self-check, installed setup/record proof,
+- [x] source/staged parity, direct self-check, installed setup/record proof,
   package QA, repository QA, and `git diff --check` pass;
-- [ ] replacement immutable identities are recorded honestly.
+- [x] replacement immutable identities are recorded honestly.
 
 ## Review Oracle
 
@@ -65,7 +65,65 @@ Do not merge from the worker lane.
 - a package version decision is required;
 - validation changes the plan.
 
-## Next Task
+## Completion Notes
 
-Open a review-only source PR. After acceptance and merge, return the replacement
-identity to the Northstar orchestrator for registry repinning.
+Worker `worker/repair-typescript-skill-entrypoint` in Paseo worktree
+`/Users/tom/.paseo/worktrees/0z9augi8/repair-typescript-skill-entrypoint`
+reproduced the absent `references/router.md` load from a materialized 21-file
+`origin/main` package, then made the adapter load its declared package-local
+mode directly. No router policy was copied; the adapter stays a 706-byte
+pointer to the manifest entrypoint.
+
+`check-typescript-quality.rhai` no longer pattern-matches adapter prose. It
+enforces a closed thin-adapter grammar: the adapter must equal a canonical
+form built from the manifest's `explicit_audit_repair` entrypoint and the
+command name that `agents/openai.yaml` invokes, and the entrypoint file must
+exist inside the installed package root. Any extra load, reference, or prose
+fails closed. Seven grammar negatives cover the two round-2 counterexamples
+(external-URL and spaced-path extra loads), the round-1 unquoted extra load,
+missing, absolute, escaping, and manifest/adapter disagreement. One
+existence negative proves a grammar-valid form still fails when the
+entrypoint file is absent from the installed copy — eight adapter negatives
+total. One exact-command policy negative proves a suffixed
+`$northstar-typescript-audit-evil` command fails while the exact configured
+command passes. `prove-installed-invocation.sh` runs package QA on a
+materialized installed copy (the clean policy positive) and proves five
+corrupted copies fail closed with their exact messages: four adapter-grammar
+rewrites and the suffixed-command policy.
+
+Review round 2: the orchestrator's exact-head review of `148f582` found the
+whole-text tokenizer still recognized only strings already matching its safe
+path regex, so external-URL and spaced-path extra loads disappeared instead
+of failing closed. Reproduced from fresh archives of that head, then the
+heuristic was replaced by the closed grammar above.
+
+Review round 3: the orchestrator's exact-head review of `7913095` found the
+policy check matched by substring containment, so a suffixed
+`$northstar-typescript-audit-evil` command passed while adapter and policy
+invoked different commands. Reproduced from a fresh archive of that head,
+then the check was replaced by a closed exact-field policy form, and the
+seven/existence negative counts were reconciled as stated here.
+
+Replacement identities:
+
+- package-tree digest
+  `sha256:259cccdbacd7e2e293389efaf72cab005d0c275bd7cb600c99f30bfbfe071843`
+  (verified against the committed tree at the repair head; an intermediate
+  staged-copy digest polluted by runtime `.effigy` state was discarded in
+  round 1)
+- manifest digest
+  `sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`
+  (unchanged; `northstar-package.json` bytes are untouched)
+
+Superseded identities remain card 002's `d18dc33b` /
+`sha256:767671328a32f45610aba4462df7b3bdc87c62fd0ab2af8e6aee866aa15a334a` /
+`sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca`,
+reproduced independently from `origin/main` before and after the repair. The
+replacement source commit is this PR head after push.
+
+Evidence: `docs/logs/2026-09/03-011349-repair-typescript-skill-entrypoint.md`.
+
+## Next Task
+Orchestrator exact-head review owns acceptance and merge. After merge, the
+replacement identity returns to Northstar card `g02.048/121` for registry
+repinning. Card 004 stays blocked until that repin.
