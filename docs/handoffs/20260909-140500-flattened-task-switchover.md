@@ -4,7 +4,7 @@ title: "Flatten Northstar tasks and compact historic generations in northstar-la
 handoff_mode: worker-pr-loop
 worker_mode: implementation
 dispatch_authority: orchestrator
-status: ready-to-launch
+status: closed
 base_required: pushed-main
 queue_dispatch: northstar-queue
 queue_approval: "The operator authorized Chatterbox on 2026-09-09 to orchestrate the flattened-task migration across projects without Orchestrator-tagged Paseo threads, and explicitly required Northstar Queue for dispatch."
@@ -118,3 +118,18 @@ retire only the queue-owned migration threads/workspace. Final report must give
 historic classifications, preservation manifest, old-to-new mapping, exact
 changes, validation/review evidence, retained exceptions, new frontier, and
 whether normal dispatch resumed.
+
+## Closeout
+
+- Result: merged and closed.
+- PR: https://github.com/inflatable-cookie/northstar-language-packs/pull/5
+- Merged commit: `90d5d92bfe331413a8c27aaec9fd86cd4e2c7750`
+- Reviewed head: `9bef5231828c20ecfd240248d61f6e0c3bf58b56`
+- Accepted review: [comment 5602537971](https://github.com/inflatable-cookie/northstar-language-packs/pull/5#issuecomment-5602537971), exact-head verdict with no blocking findings.
+- Validation: `effigy qa`, `effigy qa:docs`, package identity verification,
+  exact-range `git diff --check`, and the old-hierarchy negative oracle passed
+  at the reviewed head. Closeout documentation checks passed after merge.
+- Deferred failures: none. No provider check failure or unresolved task
+  decision remains.
+- Next pointer: preserved. `g01` has no active Northstar task; registry
+  promotion and the Convergence canary remain Northstar-owned.
