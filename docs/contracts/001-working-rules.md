@@ -8,7 +8,7 @@ release evidence, and its reviewable source PR.
 
 ## Delivery
 
-- Execute only ready local cards and their pinned upstream authority.
+- Execute only ready Northstar tasks and their pinned upstream authority.
 - Worker lanes use committed handoffs, dedicated worktrees, pushed branches,
   reviewable PRs, and no worker-side merge.
 - Universal, exact, and negative claims require a counterexample and proof.
@@ -25,7 +25,7 @@ merge without a second approval prompt.
 
 ## Closeout
 
-Reconcile the local card, milestone, log, handoff, and front doors. Record the
+Reconcile the Northstar task, log, handoff, and front doors. Record the
 source commit and exact package identities. Do not start registry promotion or
 consumer canary work from this repository.
 

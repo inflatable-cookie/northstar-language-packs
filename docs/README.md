@@ -14,5 +14,5 @@ owned package work.
 
 ## Next Task
 
-Review-only pull request opened for card 004 Rust package source. Registry
-promotion and the Convergence canary remain Northstar-owned later lanes.
+No active Northstar task. Both g01 package outcomes are merged; registry
+promotion and the Convergence canary are Northstar-owned lanes.

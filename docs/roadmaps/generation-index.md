@@ -12,5 +12,5 @@ files, release evidence, and closeout surfaces are independent.
 
 ## Next Task
 
-Review-only pull request opened for card 004's Rust package-source candidate.
-Stop after review and merge; registry promotion follows in Northstar.
+No active Northstar task. g01 outcomes are merged; the frontier is
+Northstar-owned registry promotion and Convergence canary.
