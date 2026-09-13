@@ -22,6 +22,14 @@
   `sha256:dd71d04efd67cc7805f417a79666dd920ea1811ee252d941108dfbeca8aab612`.
 - Full proof maps live in `docs/logs/2026-09/`.
 
+## Queue lifecycle adoption
+
+- [g01.001 Effigy-hosted lifecycle hook](001-adopt-effigy-hosted-lifecycle-hook.md)
+  is an operator-approved, configuration-only maintenance lane. It follows its
+  declared Queue dependencies and may run without changing product priority.
+  Existing next-task text continues to describe product sequencing; this entry
+  authorizes no sibling product work.
+
 ## Next Task
 
 No active Northstar task. Both package outcomes are merged; registry
