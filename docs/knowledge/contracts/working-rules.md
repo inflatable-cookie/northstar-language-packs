@@ -15,6 +15,8 @@ its own source PRs.
 - Preserve consumer policy and evidence formats. Return a semantic change to
   Northstar planning instead of making it here.
 - Keep package edits in meaningful commits.
+- File tool and process friction in Queue with `papercut.add` (see the
+  `northstar-lean` skill). There is no `PAPERCUTS.md`.
 
 ## Boundaries
 
