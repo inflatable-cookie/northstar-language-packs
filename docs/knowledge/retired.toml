@@ -1,6 +1,6 @@
 # Concepts that no longer exist. The retired-concepts check fails on any listed
 # term, path or config key found outside `allow`
-# (`effigy skill run northstar-lean/retired-concepts`).
+# (`effigy skill run northstar/retired-concepts`).
 #
 # paths and allow: an entry is an exact file, or a directory when it ends in
 # "/". `*` matches within one path segment. Keep terms multi-word and specific.
@@ -18,7 +18,7 @@ allow = ["CHANGELOG.md"]
 [[retired]]
 id = "papercuts-file"
 retired = "2026-09-26"
-replacement = "Queue papercuts, filed with papercut.add (see the northstar-lean skill)."
+replacement = "Queue papercuts, filed with papercut.add (see the northstar skill)."
 owner = "docs/knowledge/contracts/working-rules.md"
 terms = ["PAPERCUTS.md"]
 allow = ["CHANGELOG.md", "AGENTS.md", "docs/knowledge/contracts/working-rules.md", "docs/knowledge/retired.toml"]

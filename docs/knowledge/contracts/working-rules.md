@@ -16,7 +16,7 @@ its own source PRs.
   Northstar planning instead of making it here.
 - Keep package edits in meaningful commits.
 - File tool and process friction in Queue with `papercut.add` (see the
-  `northstar-lean` skill). There is no `PAPERCUTS.md`.
+  `northstar` skill). There is no `PAPERCUTS.md`.
 
 ## Boundaries
 
