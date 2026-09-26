@@ -13,7 +13,8 @@ a language it did not request.
 - Open questions: `docs/knowledge/questions.md`
 - What's next: `docs/plan.md`
 - Unresolved leads: `docs/triage/`
-- Tool and process friction: `PAPERCUTS.md`
+- Tool and process friction: Queue papercuts, filed with `papercut.add` (see
+  the `northstar-lean` skill). There is no `PAPERCUTS.md`.
 
 Tasks, briefs and status live in Queue, never in this repository.
 
