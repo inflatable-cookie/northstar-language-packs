@@ -1,4 +1,4 @@
-# Internal Writing Style
+# Internal writing style
 
 Write short, blunt, high-signal prose. Remove glue, not meaning. Keep the
 reasoning needed to understand a decision, boundary, failure, or next move.
@@ -9,4 +9,3 @@ reasoning needed to understand a decision, boundary, failure, or next move.
 - Distinguish facts, decisions, recommendations, and open questions.
 - Do not add ceremony, recap the obvious, or repeat authority in several homes.
 - End with one real next move when work remains.
-

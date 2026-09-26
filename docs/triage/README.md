@@ -1,5 +1,7 @@
 # Triage
 
-Temporary unresolved observations live in timestamped notes here. Triage is not
-execution authority. Refresh or cleanup promotes, merges, or removes each note.
+Unresolved leads: observations, ideas and questions not yet settled. Triage is
+never authority. Promote a lead into knowledge, the plan or a question, or
+delete it.
 
+No open leads.
