@@ -1,7 +1,7 @@
 # Papercuts
 
-Small, actionable friction found during agent work. Agents record it and
-continue the scoped task.
+Small, recurring friction worth fixing later. One entry each: date, what
+happened, impact, a plausible fix. Remove an entry when it is fixed.
 
 ## Open
 

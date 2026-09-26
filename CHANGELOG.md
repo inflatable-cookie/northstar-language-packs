@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Adopt lean Northstar: current truth moves to `docs/knowledge/`, intent to
+  `docs/plan.md`; roadmaps, handoffs, logs and lifecycle records are removed.
 - Add `@northstar/rust-quality` `0.1.0` source under `packages/rust` from the
   frozen 54-file Northstar source boundary.
 - Make `@northstar/typescript-quality` `SKILL.md` load its package-local audit

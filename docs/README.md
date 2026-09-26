@@ -1,27 +1,28 @@
-# Docs
+# Northstar language packs — current state
 
-## Start Here
+This repository is the public source and release-evidence home for official
+Northstar language-quality packages. Two packages are complete source and are
+not yet promoted to the Northstar registry:
 
-- `vision/README.md`
-- `architecture/README.md`
-- `contracts/README.md`
-- `roadmaps/README.md`
-- `logs/README.md`
+- `@northstar/typescript-quality` `0.1.0` in `packages/typescript`
+- `@northstar/rust-quality` `0.1.0` in `packages/rust`
 
-Northstar core owns the generic package protocol. This repository owns official
-package source and release evidence. Roadmaps here sequence only repository-
-owned package work.
+Both are compatible with Northstar core `>=0.2.0 <1.0.0`. Registry promotion and
+the Convergence canary are Northstar-owned, so nothing here reaches a consumer
+until those land.
 
-## Next Task
+`scripts/verify-package-identities.sh` is the release-identity oracle. Current
+package identities are in
+[knowledge/architecture.md](knowledge/architecture.md#packages).
 
-No active Northstar task. Both g01 package outcomes are merged; registry
-promotion and the Convergence canary are Northstar-owned lanes.
-<!-- northstar:lifecycle:begin schema=northstar.lifecycle.projection.v2 digest=sha256:b4135f8ba3de21c8e6c5502820e40b1d9d055e28475ba823a085545d77e4caf6 -->
-| Generation | Disposition | Runway state |
-| --- | --- | --- |
-| g01 | open | planning_required |
-| Task | Status | Stage | Revision | Record digest |
-| --- | --- | --- | --- | --- |
-| g01.001 | complete | none | 8 | sha256:245f4b30e07c4306fc10dc69e74783c10ab4c99d1f29b338bc14045c4677d949 |
-| g01.002 | complete | none | 8 | sha256:227bc927dba9556856b461d1443fe28ee6fee13d33bb07eaed9c7156a970e230 |
-<!-- northstar:lifecycle:end -->
+## By topic
+
+- Vision: [knowledge/vision.md](knowledge/vision.md)
+- Architecture and packages: [knowledge/architecture.md](knowledge/architecture.md)
+- Contracts: [knowledge/contracts/](knowledge/contracts/README.md)
+- Knowledge index: [knowledge/README.md](knowledge/README.md)
+- Foundation facts and commands: [../README.md](../README.md)
+
+## What's next
+
+See [plan.md](plan.md).

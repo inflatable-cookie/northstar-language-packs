@@ -6,8 +6,9 @@ several packages share this source repository.
 
 ## Start Here
 
-- `docs/README.md`
-- `AGENTS.md`
+- `docs/README.md` — current state and the knowledge map
+- `AGENTS.md` — orientation, product rules, and how to validate
+- `CHANGELOG.md` — what changed
 
 ## Default Effigy Loop
 
@@ -18,9 +19,12 @@ effigy test --plan
 effigy qa
 ```
 
+## Packages
+
+- `packages/typescript` — `@northstar/typescript-quality` `0.1.0`
+- `packages/rust` — `@northstar/rust-quality` `0.1.0`
+
 ## Current Focus
 
-The TypeScript package source is in `packages/typescript` and waiting
-exact-head review of the installed-invocation repair. See
-`docs/roadmaps/README.md`.
-
+Both packages are complete source. Registry promotion and the Convergence
+canary are Northstar-owned; see `docs/plan.md`.
