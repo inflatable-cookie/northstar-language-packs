@@ -25,4 +25,4 @@ package identities are in
 
 ## What's next
 
-See [plan.md](plan.md).
+The project's plan is in Queue: its lanes, their documents and their order.

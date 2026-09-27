@@ -2,18 +2,18 @@
 alias = "northstar-language-packs"
 
 [tasks]
-"qa:docs:paths" = "effigy docs check paths README.md AGENTS.md CLAUDE.md CHANGELOG.md scripts/README.md docs/README.md docs/plan.md docs/triage/README.md docs/knowledge/README.md docs/knowledge/vision.md docs/knowledge/architecture.md docs/knowledge/questions.md docs/knowledge/retired.toml docs/knowledge/contracts/README.md docs/knowledge/contracts/working-rules.md docs/knowledge/contracts/release.md docs/knowledge/contracts/writing-style.md"
+"qa:docs:paths" = "effigy docs check paths README.md AGENTS.md CLAUDE.md CHANGELOG.md scripts/README.md docs/README.md docs/knowledge/README.md docs/knowledge/vision.md docs/knowledge/architecture.md docs/knowledge/questions.md docs/knowledge/retired.toml docs/knowledge/contracts/README.md docs/knowledge/contracts/working-rules.md docs/knowledge/contracts/release.md docs/knowledge/contracts/writing-style.md"
 "qa:docs:links" = "effigy docs check links"
 "qa:docs:agent-defaults" = "effigy docs check forbidden AGENTS.md README.md docs/README.md --forbid '--repo .'"
-"qa:docs:knowledge:local-paths" = "effigy docs check forbidden docs/knowledge/*.md docs/knowledge/*/*.md docs/plan.md --forbid '/Users/' --forbid '/home/'"
+"qa:docs:knowledge:local-paths" = "effigy docs check forbidden docs/knowledge/*.md docs/knowledge/*/*.md --forbid '/Users/' --forbid '/home/'"
 "qa:docs" = [
   { task = "qa:docs:paths" },
   { task = "qa:docs:links" },
   { task = "qa:docs:agent-defaults" },
   { task = "qa:docs:knowledge:local-paths" },
 ]
-"qa:northstar:agent-contract" = "effigy docs check contains AGENTS.md --require 'effigy tasks' --require 'effigy test --plan' --require 'effigy qa' --require 'docs/README.md' --require 'docs/knowledge/README.md' --require 'docs/plan.md'"
-"qa:northstar:front-door" = "effigy docs check contains docs/README.md --require 'knowledge/README.md' --require 'plan.md'"
+"qa:northstar:agent-contract" = "effigy docs check contains AGENTS.md --require 'effigy tasks' --require 'effigy test --plan' --require 'effigy qa' --require 'docs/README.md' --require 'docs/knowledge/README.md'"
+"qa:northstar:front-door" = "effigy docs check contains docs/README.md --require 'knowledge/README.md'"
 "qa:northstar" = [
   { task = "qa:northstar:agent-contract" },
   { task = "qa:northstar:front-door" },

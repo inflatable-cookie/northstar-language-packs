@@ -27,4 +27,4 @@ effigy qa
 ## Current Focus
 
 Both packages are complete source. Registry promotion and the Convergence
-canary are Northstar-owned; see `docs/plan.md`.
+canary are Northstar-owned (Northstar lane `northstar-modules`).

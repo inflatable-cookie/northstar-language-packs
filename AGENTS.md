@@ -11,12 +11,12 @@ a language it did not request.
 - Knowledge (one owner per fact): `docs/knowledge/README.md`
 - Retired concepts, which must not come back: `docs/knowledge/retired.toml`
 - Open questions: `docs/knowledge/questions.md`
-- What's next: `docs/plan.md`
-- Unresolved leads: `docs/triage/`
 - Tool and process friction: Queue papercuts, filed with `papercut.add` (see
-  the `northstar` skill). There is no `PAPERCUTS.md`.
+  the `northstar` skill). The repository holds no papercut file or triage folder.
 
-Tasks, briefs and status live in Queue, never in this repository.
+The plan (lanes, their documents and their order), leads, papercuts, brief
+drafts, tasks and status live in Queue, never in this repository. Read what's
+next with `plan.get` (see the `northstar` skill).
 
 ## Commands
 

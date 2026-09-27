@@ -22,3 +22,11 @@ replacement = "Queue papercuts, filed with papercut.add (see the northstar skill
 owner = "docs/knowledge/contracts/working-rules.md"
 terms = ["PAPERCUTS.md"]
 allow = ["CHANGELOG.md", "AGENTS.md", "docs/knowledge/contracts/working-rules.md", "docs/knowledge/retired.toml"]
+
+[[retired]]
+id = "repository-planning-files"
+retired = "2026-09-27"
+replacement = "The plan is Queue lanes, lane documents and plan order; leads are Queue records (lead.add)."
+owner = "docs/knowledge/README.md"
+paths = ["docs/plan.md", "docs/triage/"]
+allow = ["CHANGELOG.md", "docs/knowledge/retired.toml"]
