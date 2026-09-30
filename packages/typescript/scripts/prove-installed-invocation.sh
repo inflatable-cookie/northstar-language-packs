@@ -164,7 +164,7 @@ require_file_contains "$transcripts/setup-apply.json" \
 require_file_lacks "$transcripts/setup-apply.json" "DECOY-NORTHSTAR-SETUP-RAN" "setup decoy task"
 require_file_contains "$consumer/AGENTS.md" "northstar:typescript-quality:start" "setup activation"
 require_file_lacks "$consumer/AGENTS.md" "DECOY ACTIVATION FROM CONSUMER ROOT" "setup decoy template"
-if [ ! -f "$consumer/docs/contracts/typescript-quality-profile.json" ]; then
+if [ ! -f "$consumer/docs/knowledge/contracts/typescript-quality-profile.json" ]; then
     echo "[typescript-quality:installed-route] setup did not write the consumer profile" >&2
     exit 1
 fi

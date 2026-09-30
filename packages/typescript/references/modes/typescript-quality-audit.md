@@ -11,7 +11,7 @@ everyday authoring projection.
 ## Resolve before mutation
 
 1. Check the applicable marked activation block plus
-   `docs/contracts/typescript-quality-profile.json` and deviations file. If any
+   `docs/knowledge/contracts/typescript-quality-profile.json` and deviations file. If any
    are missing, choose the narrowest package-owning scope and run
    `effigy skill run --path <installed-package-root> typescript-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>`.
    Setup discovers package ownership and overlays; it never installs packages.

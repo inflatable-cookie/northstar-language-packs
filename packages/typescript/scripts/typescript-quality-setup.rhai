@@ -212,7 +212,7 @@ fn validate_profile(profile) {
     require(profile["profile"] == "strict", "existing TypeScript quality profile must select strict");
     require(type_of(profile["packages"]) == "array" && profile["when_unresolved"] == "stop",
         "existing TypeScript quality profile lacks package ownership or fail-closed policy");
-    require(profile["deviations_file"] == "docs/contracts/typescript-quality-deviations.json",
+    require(profile["deviations_file"] == "docs/knowledge/contracts/typescript-quality-deviations.json",
         "existing TypeScript quality profile has an unsupported deviations path");
 }
 
@@ -252,7 +252,7 @@ fn apply_setup(northstar_skill_root, target_root, scope) {
     let activation = fs::read_file(path::join(asset_root, "AGENTS.md"));
     let agent_file = path::join(scope_root, "AGENTS.md");
     let state = activation_state(agent_file, activation);
-    let contracts_root = path::join(target_root, "docs/contracts");
+    let contracts_root = path::join(target_root, "docs/knowledge/contracts");
     let profile_file = path::join(contracts_root, "typescript-quality-profile.json");
     let deviations_file = path::join(contracts_root, "typescript-quality-deviations.json");
     if fs::exists(profile_file) { validate_profile(json::read_file(profile_file)); }
@@ -295,7 +295,7 @@ fn test_mixed_workspace(northstar_skill_root) {
     fs::write_file(path::join(mixed, "scratch/loose/package.json"), "{\"name\":\"loose\"}\n");
     fs::write_file(path::join(mixed, "apps/web/AGENTS.md"), "# Existing\n");
     apply_setup(northstar_skill_root, mixed, "apps/web");
-    let profile_path = path::join(mixed, "docs/contracts/typescript-quality-profile.json");
+    let profile_path = path::join(mixed, "docs/knowledge/contracts/typescript-quality-profile.json");
     let profile = json::read_file(profile_path);
     require(profile["packages"].len() == 3, "declared workspace package count drifted");
     require(profile["unregistered_candidates"] == ["scratch/loose/package.json"], "unregistered package was absorbed");
@@ -315,7 +315,7 @@ fn test_rootless_packages(northstar_skill_root) {
     fs::write_file(path::join(rootless, "apps/site/package.json"), "{\"dependencies\":{\"svelte\":\"4.2.0\"}}\n");
     fs::write_file(path::join(rootless, "packages/lib/package.json"), "{\"devDependencies\":{\"typescript\":\"^5.9.0\"}}\n");
     apply_setup(northstar_skill_root, rootless, "apps/site");
-    let rootless_profile = json::read_file(path::join(rootless, "docs/contracts/typescript-quality-profile.json"));
+    let rootless_profile = json::read_file(path::join(rootless, "docs/knowledge/contracts/typescript-quality-profile.json"));
     require(rootless_profile["packages"].len() == 2, "rootless package count drifted");
     let rootless_site = rootless_profile["packages"][0];
     require(rootless_site["ownership"] == "independent_root", "rootless package was not independently owned");

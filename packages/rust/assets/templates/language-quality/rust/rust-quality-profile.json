@@ -12,5 +12,5 @@
     "generated": [],
     "vendored": []
   },
-  "deviations_file": "docs/contracts/rust-quality-deviations.json"
+  "deviations_file": "docs/knowledge/contracts/rust-quality-deviations.json"
 }

@@ -97,7 +97,7 @@ fn validate_profile(profile) {
         profile["msrv"]["when_unresolved"] == "stop",
         "existing Rust quality profile must stop on unresolved MSRV policy");
     require(profile.contains("deviations_file") &&
-        profile["deviations_file"] == "docs/contracts/rust-quality-deviations.json",
+        profile["deviations_file"] == "docs/knowledge/contracts/rust-quality-deviations.json",
         "existing Rust quality profile has an unsupported deviations path");
 }
 
@@ -175,7 +175,7 @@ fn apply_setup(northstar_skill_root, target_root, scope) {
     let agent_file = path::join(scope_root, "AGENTS.md");
     let agent_state = agent_instruction_state(agent_file, activation);
 
-    let contracts_root = path::join(target_root, "docs/contracts");
+    let contracts_root = path::join(target_root, "docs/knowledge/contracts");
     let profile_file = path::join(contracts_root, "rust-quality-profile.json");
     let deviations_file = path::join(contracts_root, "rust-quality-deviations.json");
     if fs::exists(profile_file) {
@@ -231,8 +231,8 @@ fn self_test(northstar_skill_root) {
     fs::write_file(path::join(target, "AGENTS.md"), "# Existing instructions\n");
     apply_setup(northstar_skill_root, target, ".");
 
-    let profile_file = path::join(target, "docs/contracts/rust-quality-profile.json");
-    let deviations_file = path::join(target, "docs/contracts/rust-quality-deviations.json");
+    let profile_file = path::join(target, "docs/knowledge/contracts/rust-quality-profile.json");
+    let deviations_file = path::join(target, "docs/knowledge/contracts/rust-quality-deviations.json");
     let agent_file = path::join(target, "AGENTS.md");
     let profile = json::read_file(profile_file);
     require(profile["msrv"]["cargo_manifests"] == ["Cargo.toml", "crates/app/Cargo.toml"],

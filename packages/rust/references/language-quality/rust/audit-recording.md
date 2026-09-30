@@ -31,8 +31,8 @@ Initialize before source assessment or mutation:
 ```text
 <tool> init --repo <repo> --discovery <discovery.json> \
   --plan <scope-plan.json> --rules <skill>/references/language-quality/rust/strict-audit.json \
-  --profile <repo>/docs/contracts/rust-quality-profile.json \
-  --deviations <repo>/docs/contracts/rust-quality-deviations.json
+  --profile <repo>/docs/knowledge/contracts/rust-quality-profile.json \
+  --deviations <repo>/docs/knowledge/contracts/rust-quality-deviations.json
 ```
 
 Initialization reruns discovery and rejects stale state. It snapshots mutable,

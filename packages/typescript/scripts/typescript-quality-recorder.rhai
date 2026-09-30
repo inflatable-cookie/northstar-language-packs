@@ -138,7 +138,7 @@ fn validate_deviation(deviation) {
 }
 
 fn load_policy_snapshot(target_root) {
-    let profile_file = "docs/contracts/typescript-quality-profile.json";
+    let profile_file = "docs/knowledge/contracts/typescript-quality-profile.json";
     let profile_path = path::join(target_root, profile_file);
     require(fs::is_file(profile_path), "missing TypeScript quality profile: " + profile_file);
     let profile = json::read_file(profile_path);
@@ -931,7 +931,7 @@ fn test_profile() {
         unregistered_candidates: [],
         evidence_selectors: #{ compiler: [], framework: [], lint: [], test: [] },
         exclusions: #{ generated: [], vendored: [], fixtures: [], documentation: [], build_output: [] },
-        deviations_file: "docs/contracts/typescript-quality-deviations.json",
+        deviations_file: "docs/knowledge/contracts/typescript-quality-deviations.json",
         when_unresolved: "stop",
     }
 }
@@ -939,13 +939,13 @@ fn test_profile() {
 fn new_test_target(label) {
     let target_root = fs::make_temp_dir("northstar-typescript-audit-" + label);
     fs::create_dir(path::join(target_root, "src"));
-    fs::create_dir(path::join(target_root, "docs/contracts"));
+    fs::create_dir(path::join(target_root, "docs/knowledge/contracts"));
     fs::write_file(path::join(target_root, "package.json"), "{\"name\":\"audit-fixture\",\"private\":true}\n");
     fs::write_file(path::join(target_root, "src/lib.ts"), "export const value = 1;\n");
     fs::write_file(path::join(target_root, "src/helper.ts"), "export const helper = 2;\n");
     fs::write_file(path::join(target_root, "notes.txt"), "preserve me\n");
-    json::write_file(path::join(target_root, "docs/contracts/typescript-quality-profile.json"), test_profile());
-    json::write_file(path::join(target_root, "docs/contracts/typescript-quality-deviations.json"), #{
+    json::write_file(path::join(target_root, "docs/knowledge/contracts/typescript-quality-profile.json"), test_profile());
+    json::write_file(path::join(target_root, "docs/knowledge/contracts/typescript-quality-deviations.json"), #{
         schema_version: "1.0.0",
         language: "typescript",
         deviations: [],
