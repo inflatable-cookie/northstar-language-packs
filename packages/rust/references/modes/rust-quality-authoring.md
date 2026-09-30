@@ -8,8 +8,8 @@ worktree or repository.
 ## Resolve before editing
 
 1. Check for the marked Rust activation block in the applicable `AGENTS.md`,
-   `docs/contracts/rust-quality-profile.json`, and
-   `docs/contracts/rust-quality-deviations.json`. If any are missing, choose the
+   `docs/knowledge/contracts/rust-quality-profile.json`, and
+   `docs/knowledge/contracts/rust-quality-deviations.json`. If any are missing, choose the
    narrowest directory that owns the Rust source, manifests, tests, and related
    docs, then run
    `effigy skill run --path <installed-package-root> rust-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>`.
@@ -23,7 +23,7 @@ worktree or repository.
 3. Read the declared Cargo manifests and explicit toolchain policy paths.
    Resolve the effective MSRV per package. Never infer a universal version;
    stop on a version-sensitive choice when policy is unsettled.
-4. Read `docs/contracts/rust-quality-deviations.json` plus relevant project
+4. Read `docs/knowledge/contracts/rust-quality-deviations.json` plus relevant project
    architecture and error/API policy. Existing deviations are evidence, not
    permission to broaden their scope.
 5. Capture initial repository state and the files the task may change. Preserve

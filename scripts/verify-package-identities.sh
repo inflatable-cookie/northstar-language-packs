@@ -76,14 +76,14 @@ rust_pkg = os.path.join(repo_root, 'packages/rust')
 rust_count, rust_tree_digest = compute_spec_034_tree_digest(rust_pkg)
 assert rust_count == 59, f'Expected 59 Rust package files, got {rust_count}'
 
-expected_rust_tree = 'sha256:e5cf9c5da4a30c0f5164f2ea0c5e9d87d544c0c32f09f3c139a386c56154dba0'
+expected_rust_tree = 'sha256:59f05e9be6868fb77b7a47e093120648ea68edb8d970f1c0838c62fc506ddf21'
 assert rust_tree_digest == expected_rust_tree, f'Rust Spec-034 tree digest mismatch: {rust_tree_digest} != {expected_rust_tree}'
 
-expected_rust_listing = 'sha256:6e6884fb905ff838a496f70cba0f1c5797be6f9eed2863f46b031069f0c99529'
+expected_rust_listing = 'sha256:5ac0b051c5476b1416b1d42eab73f29cfcec31832367df75de51079340c97b08'
 rust_listing = compute_listing_digest(rust_pkg)
 assert rust_listing == expected_rust_listing, f'Rust listing digest mismatch: {rust_listing} != {expected_rust_listing}'
 
-expected_rust_manifest = 'sha256:dd71d04efd67cc7805f417a79666dd920ea1811ee252d941108dfbeca8aab612'
+expected_rust_manifest = 'sha256:8773ceb2be1aeb170d568b2fee3eebdf50b8b399e213b0a3e505262b39606ecd'
 rust_manifest = file_sha256(os.path.join(rust_pkg, 'northstar-package.json'))
 assert rust_manifest == expected_rust_manifest, f'Rust manifest mismatch: {rust_manifest} != {expected_rust_manifest}'
 
@@ -120,10 +120,10 @@ finally:
 # 2. Validate @northstar/typescript-quality release identities
 ts_pkg = os.path.join(repo_root, 'packages/typescript')
 ts_count, ts_tree_digest = compute_spec_034_tree_digest(ts_pkg)
-expected_ts_tree = 'sha256:259cccdbacd7e2e293389efaf72cab005d0c275bd7cb600c99f30bfbfe071843'
+expected_ts_tree = 'sha256:b992a0ff9a2f62772ab72176641b361c692e309c65343f19a0926ba5d6db747c'
 assert ts_tree_digest == expected_ts_tree, f'TypeScript Spec-034 tree digest mismatch: {ts_tree_digest} != {expected_ts_tree}'
 
-expected_ts_manifest = 'sha256:e5e32f2baeda2e901b8c327436adf0bfd5955a9de080887660684ad4583185ca'
+expected_ts_manifest = 'sha256:66f0ceafebb5f4447da413b4ef4f01fa1f5747615cecbc089e5f3b1139018a41'
 ts_manifest = file_sha256(os.path.join(ts_pkg, 'northstar-package.json'))
 assert ts_manifest == expected_ts_manifest, f'TypeScript manifest mismatch: {ts_manifest} != {expected_ts_manifest}'
 
@@ -131,4 +131,4 @@ print('Repository package release identities: OK')
 " "$root"
 
 # 3. Wire external expected tree binding into package proof
-"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:e5cf9c5da4a30c0f5164f2ea0c5e9d87d544c0c32f09f3c139a386c56154dba0"
+"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:59f05e9be6868fb77b7a47e093120648ea68edb8d970f1c0838c62fc506ddf21"

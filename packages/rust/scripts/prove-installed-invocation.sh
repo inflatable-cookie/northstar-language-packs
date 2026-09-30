@@ -170,7 +170,7 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:dd71d04efd67cc7805f417a79666dd920ea1811ee252d941108dfbeca8aab612'
+expected_manifest = 'sha256:8773ceb2be1aeb170d568b2fee3eebdf50b8b399e213b0a3e505262b39606ecd'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
@@ -201,7 +201,7 @@ commit = '69e4d5dea3daa4f6133d7363d39c1a0f72848435'
 SOURCE_MAP = {
     'skills/northstar/references/language-quality/rust/audit-evidence.schema.json': ('references/language-quality/rust/audit-evidence.schema.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/audit-manifest.schema.json': ('references/language-quality/rust/audit-manifest.schema.json', 'byte_exact'),
-    'skills/northstar/references/language-quality/rust/audit-recording.md': ('references/language-quality/rust/audit-recording.md', 'byte_exact'),
+    'skills/northstar/references/language-quality/rust/audit-recording.md': ('references/language-quality/rust/audit-recording.md', 'package_adapted'),
     'skills/northstar/references/language-quality/rust/audit-result.schema.json': ('references/language-quality/rust/audit-result.schema.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/audit-unit.schema.json': ('references/language-quality/rust/audit-unit.schema.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/authoring-routing-fixtures.json': ('references/language-quality/rust/authoring-routing-fixtures.json', 'byte_exact'),
@@ -250,18 +250,21 @@ SOURCE_MAP = {
     'skills/northstar/tools/rust-quality/tests/fixtures/detectors/valid/Cargo.toml': ('tools/rust-quality/tests/fixtures/detectors/valid/Cargo.toml', 'eof_newline_normalized'),
     'skills/northstar/tools/rust-quality/tests/fixtures/detectors/valid/src/lib.rs': ('tools/rust-quality/tests/fixtures/detectors/valid/src/lib.rs', 'byte_exact'),
     'skills/northstar/commands/northstar-rust-audit/SKILL.md': ('SKILL.md', 'package_adapted'),
-    'skills/northstar/assets/templates/language-quality/rust/AGENTS.md': ('assets/templates/language-quality/rust/AGENTS.md', 'byte_exact'),
+    'skills/northstar/assets/templates/language-quality/rust/AGENTS.md': ('assets/templates/language-quality/rust/AGENTS.md', 'package_adapted'),
     'skills/northstar/assets/templates/language-quality/rust/rust-quality-deviations.json': ('assets/templates/language-quality/rust/rust-quality-deviations.json', 'byte_exact'),
-    'skills/northstar/assets/templates/language-quality/rust/rust-quality-profile.json': ('assets/templates/language-quality/rust/rust-quality-profile.json', 'byte_exact'),
+    'skills/northstar/assets/templates/language-quality/rust/rust-quality-profile.json': ('assets/templates/language-quality/rust/rust-quality-profile.json', 'package_adapted'),
 }
 
 ADAPTED_EXPECTED = {
     'SKILL.md': 'sha256:83afd4b0c0d776753ea47affa164d7d3efa95dfa33925c53b3b379b9401d982c',
     'references/language-quality/rust/tool-bootstrap.md': 'sha256:9df70a6e2c8c304abc36cfdf2b349d3b933d36756e5150febc7a056c6ccacfda',
-    'references/modes/rust-quality-audit.md': 'sha256:cab6d0fcd4f84efbe4c4cf5e6610da3543e729df24ba7083aee82437c80ae4ab',
-    'references/modes/rust-quality-authoring.md': 'sha256:42bf6d4f235c5fbb08037907417c4fc5811a9446c13c8f7bb73c7f0585cf6a36',
-    'scripts/check-rust-quality.rhai': 'sha256:3aebabc4af6e4d9e756a73acfa59c58ce7592b105ad7c4cc234280793b588a09',
-    'scripts/rust-quality-setup.rhai': 'sha256:21d6ed1197252b268ac1b966a085b4ce043faf49137e265b2830486e040bad9a',
+    'references/language-quality/rust/audit-recording.md': 'sha256:2ac6b8105f5fc294acf8d515ed681c04b29499df497302b3a49c3625803221dd',
+    'references/modes/rust-quality-audit.md': 'sha256:8d2aa192b07c456b0097897ee5a6e03967b504a409f1cad5875970e8f38bde63',
+    'references/modes/rust-quality-authoring.md': 'sha256:02195367eda1a601f60fde5cd8f7ba9d5b00cbab4468e791d4fc1fc7ab023ae5',
+    'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
+    'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
+    'scripts/check-rust-quality.rhai': 'sha256:6bd981f9ebbb1c480dc05ca69dca0c274eec2f73e66856cfe0d92612b9a3b314',
+    'scripts/rust-quality-setup.rhai': 'sha256:7fb3f76a0b6a21fa4bc9e0e48c86596f76358a8ebc75ab31aad765f3171c6ae3',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -286,9 +289,9 @@ def verify_source_parity(pkg_root):
 
 verify_source_parity(root)
 
-assert counts['byte_exact'] == 44, f'Expected 44 byte_exact, got {counts[\"byte_exact\"]}'
+assert counts['byte_exact'] == 41, f'Expected 41 byte_exact, got {counts[\"byte_exact\"]}'
 assert counts['eof_newline_normalized'] == 4, f'Expected 4 eof_newline_normalized, got {counts[\"eof_newline_normalized\"]}'
-assert counts['package_adapted'] == 6, f'Expected 6 package_adapted, got {counts[\"package_adapted\"]}'
+assert counts['package_adapted'] == 9, f'Expected 9 package_adapted, got {counts[\"package_adapted\"]}'
 
 # Negative 1: unrecorded rewrite in a byte_exact file fails closed
 tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/lib.rs')
@@ -369,7 +372,7 @@ producer_bin="$ns_target/debug/northstar-rust-quality"
 
 # 5. Cross-Boundary Migration and Pre-Extraction Ledger Compatibility Proof
 compat_repo="$work/compat-consumer"
-mkdir -p "$compat_repo/src" "$compat_repo/tests" "$compat_repo/docs/contracts"
+mkdir -p "$compat_repo/src" "$compat_repo/tests" "$compat_repo/docs/knowledge/contracts"
 cat > "$compat_repo/Cargo.toml" <<'EOF'
 [package]
 name = "compat-fixture"
@@ -379,8 +382,8 @@ rust-version = "1.95"
 EOF
 printf '%s\n' 'pub fn answer() -> u8 { 41 }' > "$compat_repo/src/lib.rs"
 printf '%s\n' '#[test] fn answer_is_stable() {}' > "$compat_repo/tests/answer.rs"
-cp "$installed/assets/templates/language-quality/rust/rust-quality-profile.json" "$compat_repo/docs/contracts/"
-cp "$installed/assets/templates/language-quality/rust/rust-quality-deviations.json" "$compat_repo/docs/contracts/"
+cp "$installed/assets/templates/language-quality/rust/rust-quality-profile.json" "$compat_repo/docs/knowledge/contracts/"
+cp "$installed/assets/templates/language-quality/rust/rust-quality-deviations.json" "$compat_repo/docs/knowledge/contracts/"
 (CDPATH= cd -- "$compat_repo" && git init -q && git config user.name "Test" && git config user.email "test@example.com" && git add . && git commit -q -m "initial")
 
 # Introduce dirty anchor in worktree
@@ -397,8 +400,8 @@ EOF
 "$producer_bin" plan --discovery "$compat_inputs/discovery.json" --input "$compat_inputs/plan-in.json" --output "$compat_inputs/plan.json"
 
 rules_path="$installed/references/language-quality/rust/strict-audit.json"
-prof_path="$compat_repo/docs/contracts/rust-quality-profile.json"
-dev_path="$compat_repo/docs/contracts/rust-quality-deviations.json"
+prof_path="$compat_repo/docs/knowledge/contracts/rust-quality-profile.json"
+dev_path="$compat_repo/docs/knowledge/contracts/rust-quality-deviations.json"
 prof_before="$(file_digest "$prof_path")"
 dev_before="$(file_digest "$dev_path")"
 
@@ -596,11 +599,11 @@ require_file_contains "$transcripts/setup-apply.json" \
 require_file_lacks "$transcripts/setup-apply.json" "DECOY-NORTHSTAR-SETUP-RAN" "setup decoy task"
 require_file_contains "$consumer/AGENTS.md" "northstar:rust-quality:start" "setup activation"
 require_file_lacks "$consumer/AGENTS.md" "DECOY ACTIVATION FROM CONSUMER ROOT" "setup decoy template"
-if [ ! -f "$consumer/docs/contracts/rust-quality-profile.json" ]; then
+if [ ! -f "$consumer/docs/knowledge/contracts/rust-quality-profile.json" ]; then
     echo "[rust-quality:installed-route] setup did not write the consumer profile" >&2
     exit 1
 fi
-if [ ! -f "$consumer/docs/contracts/rust-quality-deviations.json" ]; then
+if [ ! -f "$consumer/docs/knowledge/contracts/rust-quality-deviations.json" ]; then
     echo "[rust-quality:installed-route] setup did not write the consumer deviations" >&2
     exit 1
 fi

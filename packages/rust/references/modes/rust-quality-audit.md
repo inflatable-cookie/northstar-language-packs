@@ -15,8 +15,8 @@ collecting mechanical evidence. Do not load the everyday authoring projection.
 ## Resolve before mutation
 
 1. Check for the marked Rust activation block in the applicable `AGENTS.md`,
-   `docs/contracts/rust-quality-profile.json`, and
-   `docs/contracts/rust-quality-deviations.json`. If any are missing, choose the
+   `docs/knowledge/contracts/rust-quality-profile.json`, and
+   `docs/knowledge/contracts/rust-quality-deviations.json`. If any are missing, choose the
    narrowest Rust-owning directory and run
    `effigy skill run --path <installed-package-root> rust-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>`.
    Do not ask the operator to copy templates or populate discoverable paths.
