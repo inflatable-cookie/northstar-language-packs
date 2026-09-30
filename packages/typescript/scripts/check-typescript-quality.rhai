@@ -258,7 +258,7 @@ fn require_command(commands, name) {
 fn validate_manifest(manifest) {
     require(manifest["schema_version"] == "1.0.0", "unsupported package schema version");
     require(manifest["package_id"] == "@northstar/typescript-quality", "package id drifted");
-    require(manifest["version"] == "0.2.0", "package version drifted");
+    require(manifest["version"] == "0.2.1", "package version drifted");
     require(manifest["kind"] == "language-quality", "package kind drifted");
     require(manifest["compatible_core_range"] == ">=0.2.0 <1.0.0", "core range drifted");
     require(manifest["supported_languages"] == ["typescript"], "supported languages drifted");

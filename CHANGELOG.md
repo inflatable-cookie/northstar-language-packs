@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Update the TypeScript AGENTS template to use the installed-package route and
+  release `@northstar/typescript-quality` `0.2.1`.
 - Bump both language-quality packages to `0.2.0` for the breaking move of
   consumer profiles and deviations to `docs/knowledge/contracts/`. Consumers
   still using `docs/contracts/` must move those files before upgrading.
