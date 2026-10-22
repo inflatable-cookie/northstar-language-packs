@@ -5,7 +5,7 @@ Northstar language-quality packages. Two packages are complete source and are
 not yet promoted to the Northstar registry:
 
 - `@northstar/typescript-quality` `0.1.0` in `packages/typescript`
-- `@northstar/rust-quality` `0.1.0` in `packages/rust`
+- `@northstar/rust-quality` `0.2.1` in `packages/rust`
 
 Both are compatible with Northstar core `>=0.2.0 <1.0.0`. Registry promotion and
 the Convergence canary are Northstar-owned, so nothing here reaches a consumer

@@ -56,8 +56,9 @@ file_digest() {
     fi
 }
 
+# Build output inside the installed tree is a leak, so target/ stays in the listing.
 tree_listing() {
-    (CDPATH= cd -- "$1" && find . -type f ! -path './.effigy/*' ! -path './.git/*' ! -path './tools/rust-quality/target/*' | sort | while IFS= read -r rel; do
+    (CDPATH= cd -- "$1" && find . -type f ! -path './.effigy/*' ! -path './.git/*' | sort | while IFS= read -r rel; do
         printf '%s  %s\n' "$(file_digest "$rel")" "$rel"
     done)
 }
@@ -170,7 +171,7 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:8773ceb2be1aeb170d568b2fee3eebdf50b8b399e213b0a3e505262b39606ecd'
+expected_manifest = 'sha256:4b7f9730bbe64867dd2c22126e844be351717207e85e5aa2784afc140f687df3'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
@@ -257,13 +258,13 @@ SOURCE_MAP = {
 
 ADAPTED_EXPECTED = {
     'SKILL.md': 'sha256:83afd4b0c0d776753ea47affa164d7d3efa95dfa33925c53b3b379b9401d982c',
-    'references/language-quality/rust/tool-bootstrap.md': 'sha256:9df70a6e2c8c304abc36cfdf2b349d3b933d36756e5150febc7a056c6ccacfda',
+    'references/language-quality/rust/tool-bootstrap.md': 'sha256:1d0668b809c868341f8895fcef666b3c3175b406c4942a6c60306e91534b7696',
     'references/language-quality/rust/audit-recording.md': 'sha256:2ac6b8105f5fc294acf8d515ed681c04b29499df497302b3a49c3625803221dd',
     'references/modes/rust-quality-audit.md': 'sha256:8d2aa192b07c456b0097897ee5a6e03967b504a409f1cad5875970e8f38bde63',
     'references/modes/rust-quality-authoring.md': 'sha256:02195367eda1a601f60fde5cd8f7ba9d5b00cbab4468e791d4fc1fc7ab023ae5',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:6bd981f9ebbb1c480dc05ca69dca0c274eec2f73e66856cfe0d92612b9a3b314',
+    'scripts/check-rust-quality.rhai': 'sha256:3f1ff53005b695d3c7a0fb5b647d0038d0eabe381e5a0af4a377cda1705d87f8',
     'scripts/rust-quality-setup.rhai': 'sha256:7fb3f76a0b6a21fa4bc9e0e48c86596f76358a8ebc75ab31aad765f3171c6ae3',
 }
 
@@ -436,7 +437,7 @@ EOF
 
 # Consumer (Installed Package Engine): validate-ledger, extend, collect, complete, finalize
 probe_target="$work/probe-target"
-cargo install --locked --offline --path "$installed/tools/rust-quality" --root "$probe_target" >/dev/null 2>&1
+cargo install --locked --offline --path "$installed/tools/rust-quality" --target-dir "$work/probe-build" --root "$probe_target" >/dev/null 2>&1
 probe_bin="$probe_target/bin/northstar-rust-quality"
 
 "$probe_bin" validate-ledger --rules "$rules_path" --input "$compat_inputs/assess-in.json"
@@ -621,10 +622,14 @@ fi
 
 # 7. Cargo Engine Suite and Tamper Negatives
 if ! run_capture "$transcripts/cargo-test.txt" \
-    cargo test --manifest-path "$installed/tools/rust-quality/Cargo.toml"
+    cargo test --manifest-path "$installed/tools/rust-quality/Cargo.toml" --target-dir "$work/engine-test-build"
 then
     echo "[rust-quality:installed-route] cargo test failed" >&2
     cat "$transcripts/cargo-test.txt" >&2
+    exit 1
+fi
+if [ -e "$installed/tools/rust-quality/target" ]; then
+    echo "[rust-quality:installed-route] cargo wrote target/ into the installed package" >&2
     exit 1
 fi
 require_file_contains "$transcripts/cargo-test.txt" "4 passed" "unit test count"

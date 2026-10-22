@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Release `@northstar/rust-quality` `0.2.1`. Tool bootstrap and the installed
+  proof build `tools/rust-quality` with `--target-dir` outside the package.
+  Cargo no longer writes `target/` into the immutable installed tree. Installs
+  already polluted by `0.2.0` need operator repair; the store refuses to
+  overwrite them.
 - Update the TypeScript AGENTS template to use the installed-package route and
   release `@northstar/typescript-quality` `0.2.1`.
 - Bump both language-quality packages to `0.2.0` for the breaking move of
