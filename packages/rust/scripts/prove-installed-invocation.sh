@@ -212,7 +212,7 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:5d074a0310eef7d241c61a82f2dc746413e3c55326d9e9327ea7095ada26ded6'
+expected_manifest = 'sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
@@ -315,14 +315,14 @@ SOURCE_MAP = {
 
 ADAPTED_EXPECTED = {
     'SKILL.md': 'sha256:83afd4b0c0d776753ea47affa164d7d3efa95dfa33925c53b3b379b9401d982c',
-    'references/language-quality/rust/tool-bootstrap.md': 'sha256:1d0668b809c868341f8895fcef666b3c3175b406c4942a6c60306e91534b7696',
-    'references/language-quality/rust/audit-recording.md': 'sha256:2ac6b8105f5fc294acf8d515ed681c04b29499df497302b3a49c3625803221dd',
-    'references/modes/rust-quality-audit.md': 'sha256:8d2aa192b07c456b0097897ee5a6e03967b504a409f1cad5875970e8f38bde63',
-    'references/modes/rust-quality-authoring.md': 'sha256:02195367eda1a601f60fde5cd8f7ba9d5b00cbab4468e791d4fc1fc7ab023ae5',
+    'references/language-quality/rust/tool-bootstrap.md': 'sha256:a8d89c616d41383e409588831c30724f42f9e3cd6ccc0e7c0216bf3ff9b54e4c',
+    'references/language-quality/rust/audit-recording.md': 'sha256:69fc48ba6838447083f1d0e4661707a081867bbb8e64f9ad2b09c607b545e9de',
+    'references/modes/rust-quality-audit.md': 'sha256:6be8d206303f47de9b7ccf5983238cd7bfd364ea6859c87c545f1e4527ba5f62',
+    'references/modes/rust-quality-authoring.md': 'sha256:6d22efb5a3a3449a04e68a8ab6f7dc58c82e740ad7955283a245f88e53548aba',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:82275076ead89f680b718a738df91cd37c363a5a8bae9b5e0fe252e22c75f54b',
-    'scripts/rust-quality-setup.rhai': 'sha256:e3659a9c25dd771dc47687d06aeb69a8dd1dc6e1df88dae14d62c5d5f5c92386',
+    'scripts/check-rust-quality.rhai': 'sha256:eb19b8ba64b49331376aa3cb3ae7857447c096a0300a1626fd1efb28c2b624be',
+    'scripts/rust-quality-setup.rhai': 'sha256:1efb1c3f7d00cb1dce76b18ede7ac5a3ec7fdcbbd99bb9ead2acbedbe22b502b',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -638,6 +638,8 @@ require_file_contains "$transcripts/empty-relay.json" \
     "empty relay usage"
 
 # Positive: installed setup through the public surface, consumer supplied separately.
+# Everyday authoring is opt-in, so a plain apply writes the repository contracts
+# and neither the activation block nor an opt-in marker.
 if ! run_capture "$transcripts/setup-apply.json" \
     effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json -- apply "$consumer" .
 then
@@ -649,10 +651,20 @@ require_file_contains "$transcripts/setup-apply.json" "\"catalog_alias\": \"rust
 require_file_contains "$transcripts/setup-apply.json" "\"root\": \"$installed\"" "setup source root"
 require_file_contains "$transcripts/setup-apply.json" "\"root\": \"$consumer\"" "setup target root"
 require_file_contains "$transcripts/setup-apply.json" '"exit_status": 0' "setup exit status"
+require_file_contains "$transcripts/setup-apply.json" "everyday_authoring=off" "setup everyday default off"
 require_file_lacks "$transcripts/setup-apply.json" "usage: rust-quality:setup" "setup relay usage"
 require_file_lacks "$transcripts/setup-apply.json" "DECOY-NORTHSTAR-SETUP-RAN" "setup decoy task"
-require_file_contains "$consumer/AGENTS.md" "northstar:rust-quality:start" "setup activation"
-require_file_lacks "$consumer/AGENTS.md" "DECOY ACTIVATION FROM CONSUMER ROOT" "setup decoy template"
+if [ -f "$consumer/AGENTS.md" ]; then
+    echo "[rust-quality:installed-route] setup installed everyday-authoring activation without the opt-in" >&2
+    cat "$consumer/AGENTS.md" >&2
+    exit 1
+fi
+marker="$consumer/docs/knowledge/contracts/language-quality-activation.json"
+if [ -f "$marker" ]; then
+    echo "[rust-quality:installed-route] setup wrote an activation marker without the opt-in" >&2
+    cat "$marker" >&2
+    exit 1
+fi
 if [ ! -f "$consumer/docs/knowledge/contracts/rust-quality-profile.json" ]; then
     echo "[rust-quality:installed-route] setup did not write the consumer profile" >&2
     exit 1
@@ -661,6 +673,24 @@ if [ ! -f "$consumer/docs/knowledge/contracts/rust-quality-deviations.json" ]; t
     echo "[rust-quality:installed-route] setup did not write the consumer deviations" >&2
     exit 1
 fi
+
+# The documented opt-in step: one explicit per-repository setting.
+if ! run_capture "$transcripts/setup-opt-in.json" \
+    effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json -- \
+    apply "$consumer" . --everyday-authoring
+then
+    echo "[rust-quality:installed-route] installed setup opt-in failed" >&2
+    cat "$transcripts/setup-opt-in.json" >&2
+    exit 1
+fi
+require_file_contains "$transcripts/setup-opt-in.json" "everyday_authoring=on" "setup opt-in state"
+require_file_contains "$consumer/AGENTS.md" "northstar:rust-quality:start" "setup activation"
+require_file_lacks "$consumer/AGENTS.md" "DECOY ACTIVATION FROM CONSUMER ROOT" "setup decoy template"
+python3 -c '
+import json, sys
+marker = json.load(open(sys.argv[1]))
+assert marker.get("everyday_authoring") is True, marker
+' "$marker"
 if [ -f "$installed/AGENTS.md" ] || [ -d "$installed/docs" ] || [ -d "$installed/.effigy" ]; then
     echo "[rust-quality:installed-route] setup mutated the installed package root" >&2
     exit 1
@@ -740,6 +770,78 @@ then
 fi
 require_file_contains "$transcripts/tamper-mapping.txt" "install.payload_mismatch" "tampered mapping rejection"
 
+# 6b. Declared tool recipe: expand the manifest's own `tool` block into a
+# scratch build root exactly as the lifecycle does, and require the built binary
+# plus an unchanged installed tree. This is the package-side proof that the
+# declaration builds outside the install; the lifecycle proof belongs to
+# Northstar core. The probe target dir is reused so the build is a cache hit.
+tool_build="$work/tool-build"
+mkdir -p "$tool_build/root"
+before_tool_build="$(tree_listing "$installed")"
+python3 - "$installed" "$tool_build" "$work/probe-build" <<'EOF' >"$transcripts/tool-recipe.txt"
+import json, os, sys
+
+pkg, build, target_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+manifest = json.load(open(os.path.join(pkg, 'northstar-package.json')))
+tool = manifest.get('tool')
+assert tool, 'manifest declares no tool'
+assert tool['id'] == 'rust-quality', tool['id']
+assert tool['source_path'] == 'tools/rust-quality', tool['source_path']
+recipe = tool['build']
+assert recipe['command'] in manifest['runtime_capabilities']['required_commands'], recipe['command']
+values = {
+    '{source}': os.path.join(pkg, tool['source_path']),
+    '{target_dir}': target_dir,
+    '{root}': os.path.join(build, 'root'),
+}
+argv = []
+for argument in recipe['argv']:
+    for token, value in values.items():
+        argument = argument.replace(token, value)
+    assert '{' not in argument and '}' not in argument, argument
+    argv.append(argument)
+with open(os.path.join(build, 'command.txt'), 'w') as handle:
+    handle.write(recipe['command'] + '\n')
+with open(os.path.join(build, 'argv.txt'), 'w') as handle:
+    for argument in argv:
+        handle.write(argument + '\n')
+with open(os.path.join(build, 'output.txt'), 'w') as handle:
+    handle.write(os.path.join(build, 'root', recipe['output']) + '\n')
+print('declared tool recipe: ' + recipe['command'] + ' ' + ' '.join(argv))
+EOF
+tool_command="$(cat "$tool_build/command.txt")"
+tool_output="$(cat "$tool_build/output.txt")"
+set --
+while IFS= read -r tool_argument; do
+    set -- "$@" "$tool_argument"
+done <"$tool_build/argv.txt"
+if ! (CDPATH= cd -- "$tool_build" && "$tool_command" "$@") >"$transcripts/tool-build.txt" 2>&1; then
+    echo "[rust-quality:installed-route] declared tool build failed" >&2
+    cat "$transcripts/tool-build.txt" >&2
+    exit 1
+fi
+if [ ! -x "$tool_output" ]; then
+    echo "[rust-quality:installed-route] declared tool build produced no executable at $tool_output" >&2
+    exit 1
+fi
+if ! run_capture "$transcripts/tool-built.txt" \
+    "$tool_output" verify-install --source-root "$installed/tools/rust-quality" --receipt "$work/cache/tool-built-receipt.json"
+then
+    echo "[rust-quality:installed-route] declared tool binary failed verify-install" >&2
+    cat "$transcripts/tool-built.txt" >&2
+    exit 1
+fi
+require_file_contains "$work/cache/tool-built-receipt.json" '"current": true' "declared tool receipt current"
+after_tool_build="$(tree_listing "$installed")"
+if [ "$before_tool_build" != "$after_tool_build" ]; then
+    echo "[rust-quality:installed-route] declared tool build changed the installed package tree" >&2
+    exit 1
+fi
+if [ -e "$installed/tools/rust-quality/target" ]; then
+    echo "[rust-quality:installed-route] declared tool build wrote target/ into the installed package" >&2
+    exit 1
+fi
+
 # 7. Lifecycle execution proof: inspect running against consumer Git repo
 printf '\npub fn multiply(a: i32, b: i32) -> i32 { a * b }\n' >> "$consumer/src/lib.rs"
 discovery_path="$work/discovery.json"
@@ -765,7 +867,7 @@ then
     exit 1
 fi
 require_file_contains "$transcripts/staged-qa.txt" \
-    "11 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths" \
+    "declared tool recipe, 7 grammar, 1 existence, and 1 exact-command negative paths" \
     "installed-copy adapter closure check"
 
 expect_adapter_rejection() {

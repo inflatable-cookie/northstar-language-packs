@@ -5,6 +5,14 @@ requested or applicable repository instructions already activate Rust quality.
 This mode guides the current task; it does not authorize an audit of the
 worktree or repository.
 
+Everyday authoring is a repository choice. It exists only where
+`everyday_authoring` is `true` in
+`docs/knowledge/contracts/language-quality-activation.json`. A route that
+returns `unavailable` says the repository has not opted in: stop, do not follow
+this mode, and use the repository's own checks. A route that returns `degraded`
+reports the pack failure and points at the repository's normal Validate checks;
+report it and continue there. Explicit audit is unaffected by either.
+
 ## Resolve before editing
 
 1. Check for the marked Rust activation block in the applicable `AGENTS.md`,
@@ -12,10 +20,11 @@ worktree or repository.
    `docs/knowledge/contracts/rust-quality-deviations.json`. If any are missing, choose the
    narrowest directory that owns the Rust source, manifests, tests, and related
    docs, then run
-   `effigy skill run --path <installed-package-root> rust-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>`.
-   The setup task discovers Cargo and toolchain files, preserves existing
-   instructions and contracts, and is idempotent. Do not ask the operator to
-   copy templates or populate mechanically discoverable paths.
+   `effigy skill run --path <installed-package-root> rust-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory> --everyday-authoring`.
+   Only that flag opts a repository in. The setup task discovers Cargo and
+   toolchain files, preserves existing instructions and contracts, and is
+   idempotent. Do not ask the operator to copy templates or populate
+   mechanically discoverable paths.
 2. Read the installed activation and profile. Require language `rust` and
    profile `strict`; stop if an existing file is unsupported or ambiguous.
    Ask the operator only when repository policy cannot be recovered, such as a
@@ -65,12 +74,12 @@ any mutation authority.
 - Do not scan, format, lint-fix, or rewrite unrelated repository code.
 - Resolve every applicable rule as compliant, a concrete finding repaired under
   existing authority, an accepted recorded deviation, report-only, or blocked.
-- At closeout only, load `../language-quality/rust/evidence-collection.md` and
-  `../language-quality/rust/tool-bootstrap.md`. Run the compact `closeout`
-  operation with explicit repository-owned selectors. It stores raw output
-  outside the worktree and returns only tranche paths, applicable rules,
-  normalized statuses, diagnostic identifiers, and limitations. Do not load
-  the audit projection or ledger.
+- At closeout only, load `../language-quality/rust/evidence-collection.md`. Run
+  the compact `closeout` operation with the route's absolute `tools` binary and
+  explicit repository-owned selectors. It stores raw output outside the
+  worktree and returns only tranche paths, applicable rules, normalized
+  statuses, diagnostic identifiers, and limitations. Do not load the audit
+  projection or ledger.
 - Report changed scope, applicable rules, deviations or blockers, validation,
   and remaining limitations.
 

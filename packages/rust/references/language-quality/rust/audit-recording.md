@@ -1,9 +1,9 @@
 # Rust Audit Recording Contract
 
-First follow `tool-bootstrap.md`. In the commands below, `<tool>` is the
-verified absolute payload binary and `<repo>` is the consumer Git root. JSON
-inputs are scratch files outside the worktree. Canonical records live under
-the repository's Git metadata at:
+Take `<tool>` from the route's absolute `tools` path; `tool-bootstrap.md` covers
+only the pinned audit scanner. In the commands below, `<repo>` is the consumer
+Git root. JSON inputs are scratch files outside the worktree. Canonical records
+live under the repository's Git metadata at:
 
 ```text
 <git-path>/northstar/rust-quality/audits/<audit-id>/

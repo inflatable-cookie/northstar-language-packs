@@ -4,6 +4,44 @@ fn require(condition, message) {
     }
 }
 
+fn activation_marker_path(contracts_root) {
+    path::join(contracts_root, "language-quality-activation.json")
+}
+
+fn read_activation_marker(marker_file) {
+    // The marker owns the repository's single everyday-authoring setting, so a
+    // malformed marker fails closed instead of being read as "not opted in".
+    if !fs::exists(marker_file) {
+        return #{};
+    }
+    require(fs::is_file(marker_file), "activation marker target is not a file: " + marker_file);
+    let marker = #{};
+    try {
+        marker = json::read_file(marker_file);
+    } catch (error) {
+        throw("[northstar:rust-quality-setup] activation marker is not valid JSON; repair " +
+            marker_file + " before setup: " + error.to_string());
+    }
+    require(type_of(marker) == "map", "activation marker must be an object: " + marker_file);
+    if marker.contains("everyday_authoring") {
+        require(type_of(marker["everyday_authoring"]) == "bool",
+            "activation marker everyday_authoring must be a boolean: " + marker_file);
+    }
+    marker
+}
+
+fn marker_opts_in(marker) {
+    marker.contains("everyday_authoring") && marker["everyday_authoring"] == true
+}
+
+fn enable_everyday_authoring(marker_file, marker) {
+    if marker_opts_in(marker) {
+        return;
+    }
+    marker["everyday_authoring"] = true;
+    json::write_file(marker_file, marker);
+}
+
 fn resolve_path(base_root, raw_path) {
     if str::starts_with(raw_path, "/") {
         raw_path
@@ -153,7 +191,7 @@ fn repository_declares_msrv(target_root, manifests, toolchain_paths) {
     toolchain_paths.len() > 0
 }
 
-fn apply_setup(northstar_skill_root, target_root, scope) {
+fn apply_setup(northstar_skill_root, target_root, scope, opt_in) {
     require(fs::is_dir(target_root), "target root is not a directory: " + target_root);
     let scope = normalize_scope_directory(target_root, scope);
     let scope_root = target_root;
@@ -178,6 +216,11 @@ fn apply_setup(northstar_skill_root, target_root, scope) {
     let contracts_root = path::join(target_root, "docs/knowledge/contracts");
     let profile_file = path::join(contracts_root, "rust-quality-profile.json");
     let deviations_file = path::join(contracts_root, "rust-quality-deviations.json");
+    let marker_file = activation_marker_path(contracts_root);
+    let marker = read_activation_marker(marker_file);
+    // Everyday authoring is a repository choice, off by default. The flag opts
+    // this repository in; a marker that already says so keeps it on.
+    let everyday = opt_in || marker_opts_in(marker);
     if fs::exists(profile_file) {
         require(fs::is_file(profile_file), "Rust quality profile target is not a file");
         validate_profile(json::read_file(profile_file));
@@ -187,8 +230,13 @@ fn apply_setup(northstar_skill_root, target_root, scope) {
         validate_deviations(json::read_file(deviations_file));
     }
 
-    install_agent_instructions(agent_file, activation, agent_state);
-    if !fs::exists(profile_file) || !fs::exists(deviations_file) {
+    // The activation block is the everyday-authoring boilerplate a brief reads.
+    // Without the opt-in it is not installed, and setup never removes one that
+    // already exists.
+    if everyday {
+        install_agent_instructions(agent_file, activation, agent_state);
+    }
+    if !fs::exists(profile_file) || !fs::exists(deviations_file) || everyday {
         fs::create_dir(contracts_root);
     }
     if !fs::exists(profile_file) {
@@ -201,12 +249,23 @@ fn apply_setup(northstar_skill_root, target_root, scope) {
         let deviations = json::read_file(path::join(asset_root, "rust-quality-deviations.json"));
         json::write_file(deviations_file, deviations);
     }
+    if everyday {
+        enable_everyday_authoring(marker_file, marker);
+    }
 
     if !repository_declares_msrv(target_root, manifests, toolchain_paths) {
         log_warn("[northstar:rust-quality-setup] activation installed, but repository MSRV is unresolved; obtain repository policy before version-sensitive work");
     }
+    let everyday_state = "off";
+    if everyday {
+        everyday_state = "on";
+    }
+    if !everyday && agent_state == "current" {
+        log_warn("[northstar:rust-quality-setup] everyday authoring is off for this repository: the existing Rust activation block stays, and the route reports unavailable until everyday_authoring is true in " + marker_file);
+    }
     log("Northstar Rust quality activation: OK (scope=" + scope +
-        ", manifests=" + manifests.len() + ", toolchain_paths=" + toolchain_paths.len() + ")");
+        ", manifests=" + manifests.len() + ", toolchain_paths=" + toolchain_paths.len() +
+        ", everyday_authoring=" + everyday_state + ")");
 }
 
 fn expect_error(label, action, expected) {
@@ -229,10 +288,14 @@ fn self_test(northstar_skill_root) {
     fs::write_file(path::join(target, "crates/app/Cargo.toml"),
         "[package]\nname = \"app\"\nversion = \"0.1.0\"\nrust-version.workspace = true\n");
     fs::write_file(path::join(target, "AGENTS.md"), "# Existing instructions\n");
-    apply_setup(northstar_skill_root, target, ".");
+    // Off by default: setup writes the repository's contracts but neither the
+    // everyday-authoring block nor an opt-in marker.
+    apply_setup(northstar_skill_root, target, ".", false);
 
-    let profile_file = path::join(target, "docs/knowledge/contracts/rust-quality-profile.json");
-    let deviations_file = path::join(target, "docs/knowledge/contracts/rust-quality-deviations.json");
+    let contracts_root = path::join(target, "docs/knowledge/contracts");
+    let profile_file = path::join(contracts_root, "rust-quality-profile.json");
+    let deviations_file = path::join(contracts_root, "rust-quality-deviations.json");
+    let marker_file = activation_marker_path(contracts_root);
     let agent_file = path::join(target, "AGENTS.md");
     let profile = json::read_file(profile_file);
     require(profile["msrv"]["cargo_manifests"] == ["Cargo.toml", "crates/app/Cargo.toml"],
@@ -241,27 +304,65 @@ fn self_test(northstar_skill_root) {
         "setup invented a toolchain policy path");
     require(fs::read_file(agent_file).contains("# Existing instructions"),
         "setup overwrote existing AGENTS instructions");
-    require(fs::read_file(agent_file).contains("<!-- northstar:rust-quality:start -->"),
-        "setup did not install scoped activation");
+    require(!fs::read_file(agent_file).contains("<!-- northstar:rust-quality:start -->"),
+        "setup installed everyday-authoring activation without the repository opt-in");
+    require(!fs::exists(marker_file),
+        "setup wrote an activation marker without the repository opt-in");
 
     let profile_hash = fs::sha256(profile_file);
     let deviations_hash = fs::sha256(deviations_file);
     let agent_hash = fs::sha256(agent_file);
-    apply_setup(northstar_skill_root, target, ".");
+    apply_setup(northstar_skill_root, target, ".", false);
     require(fs::sha256(profile_file) == profile_hash &&
         fs::sha256(deviations_file) == deviations_hash &&
         fs::sha256(agent_file) == agent_hash,
         "repeat setup was not idempotent");
+    require(!fs::exists(marker_file), "repeat setup wrote an activation marker");
+
+    // Only the explicit opt-in installs the everyday-authoring boilerplate and
+    // records the repository setting.
+    apply_setup(northstar_skill_root, target, ".", true);
+    require(fs::read_file(agent_file).contains("# Existing instructions") &&
+        fs::read_file(agent_file).contains("<!-- northstar:rust-quality:start -->"),
+        "opt-in setup did not install scoped activation");
+    require(marker_opts_in(json::read_file(marker_file)),
+        "opt-in setup did not record everyday_authoring");
+    let opted_agent_hash = fs::sha256(agent_file);
+    let opted_marker_hash = fs::sha256(marker_file);
+    apply_setup(northstar_skill_root, target, ".", true);
+    require(fs::sha256(agent_file) == opted_agent_hash && fs::sha256(marker_file) == opted_marker_hash,
+        "repeat opt-in setup was not idempotent");
+
+    // A recorded opt-in survives a later run without the flag.
+    apply_setup(northstar_skill_root, target, ".", false);
+    require(fs::sha256(agent_file) == opted_agent_hash && fs::sha256(marker_file) == opted_marker_hash,
+        "setup without the flag dropped a recorded repository opt-in");
 
     let no_cargo = fs::make_temp_dir("northstar-rust-quality-setup-no-cargo");
-    expect_error("missing Cargo manifest", || apply_setup(northstar_skill_root, no_cargo, "."), "no Cargo.toml");
+    expect_error("missing Cargo manifest", || apply_setup(northstar_skill_root, no_cargo, ".", false), "no Cargo.toml");
 
     let broken = fs::make_temp_dir("northstar-rust-quality-setup-broken-agents");
     fs::write_file(path::join(broken, "Cargo.toml"),
         "[package]\nname = \"broken\"\nversion = \"0.1.0\"\nrust-version = \"1.95\"\n");
     fs::write_file(path::join(broken, "AGENTS.md"),
         "<!-- northstar:rust-quality:start -->\n");
-    expect_error("partial activation", || apply_setup(northstar_skill_root, broken, "."), "incomplete Rust activation");
+    expect_error("partial activation", || apply_setup(northstar_skill_root, broken, ".", true), "incomplete Rust activation");
+
+    // The marker owns the setting, so a malformed one fails closed instead of
+    // reading as "not opted in".
+    let bad_marker = fs::make_temp_dir("northstar-rust-quality-setup-bad-marker");
+    let bad_contracts = path::join(bad_marker, "docs/knowledge/contracts");
+    fs::create_dir(bad_contracts);
+    fs::write_file(path::join(bad_marker, "Cargo.toml"),
+        "[package]\nname = \"bad-marker\"\nversion = \"0.1.0\"\nrust-version = \"1.95\"\n");
+    fs::write_file(activation_marker_path(bad_contracts), "not json\n");
+    expect_error("malformed activation marker",
+        || apply_setup(northstar_skill_root, bad_marker, ".", false),
+        "activation marker is not valid JSON");
+    fs::write_file(activation_marker_path(bad_contracts), "{\"everyday_authoring\": \"yes\"}\n");
+    expect_error("non-boolean opt-in",
+        || apply_setup(northstar_skill_root, bad_marker, ".", false),
+        "must be a boolean");
 
     let absolute_root = fs::make_temp_dir("northstar-rust-quality-setup-absolute-root");
     fs::create_dir(path::join(absolute_root, "crates/app"));
@@ -271,7 +372,7 @@ fn self_test(northstar_skill_root) {
         "absolute target-root scope did not canonicalize to '.'");
     require(normalize_scope_directory(absolute_root, path::join(absolute_root, "crates/app")) == "crates/app",
         "absolute under-target scope did not canonicalize to relative form");
-    apply_setup(northstar_skill_root, absolute_root, absolute_root);
+    apply_setup(northstar_skill_root, absolute_root, absolute_root, true);
     require(fs::read_file(path::join(absolute_root, "AGENTS.md")).contains("<!-- northstar:rust-quality:start -->"),
         "absolute target-root scope did not install activation");
 
@@ -317,7 +418,7 @@ fn test_consumer_decoy_ignored(package_root) {
     fs::create_dir(decoy_root);
     fs::write_file(path::join(decoy_root, "AGENTS.md"), "DECOY ACTIVATION FROM CONSUMER ROOT\n");
     fs::write_file(path::join(decoy_root, "rust-quality-profile.json"), "{}\n");
-    apply_setup(package_root, consumer, ".");
+    apply_setup(package_root, consumer, ".", true);
     let written = fs::read_file(path::join(consumer, "AGENTS.md"));
     require(!written.contains("DECOY ACTIVATION FROM CONSUMER ROOT"),
         "setup loaded assets from consumer repo_root");
@@ -335,14 +436,26 @@ let task_args = strip_relay_boundary(args);
 if task_args.len() == 1 && task_args[0] == "self-test" {
     self_test(northstar_skill_root);
     test_consumer_decoy_ignored(northstar_skill_root);
-    log("Northstar Rust quality setup self-test: OK (install, preserve, idempotency, absolute-under-target, decoy ignored, 4 negative paths)");
-} else if (task_args.len() == 2 || task_args.len() == 3) && task_args[0] == "apply" {
-    let target_root = resolve_path(repo_root, task_args[1]);
-    let scope = ".";
-    if task_args.len() == 3 {
-        scope = task_args[2];
+    log("Northstar Rust quality setup self-test: OK (opt-in off by default, opt-in install, preserve, idempotency, absolute-under-target, decoy ignored, 6 negative paths)");
+} else if task_args.len() >= 2 && task_args.len() <= 4 && task_args[0] == "apply" {
+    let positional = [];
+    let opt_in = false;
+    for index in 1..task_args.len() {
+        if task_args[index] == "--everyday-authoring" {
+            opt_in = true;
+        } else {
+            positional.push(task_args[index]);
+        }
     }
-    apply_setup(northstar_skill_root, target_root, scope);
+    if positional.len() < 1 || positional.len() > 2 {
+        throw("usage: rust-quality:setup self-test | apply <target-root> [scope-directory (. or crates/foo)] [--everyday-authoring]");
+    }
+    let target_root = resolve_path(repo_root, positional[0]);
+    let scope = ".";
+    if positional.len() == 2 {
+        scope = positional[1];
+    }
+    apply_setup(northstar_skill_root, target_root, scope, opt_in);
 } else {
-    throw("usage: rust-quality:setup self-test | apply <target-root> [scope-directory (. or crates/foo)]");
+    throw("usage: rust-quality:setup self-test | apply <target-root> [scope-directory (. or crates/foo)] [--everyday-authoring]");
 }

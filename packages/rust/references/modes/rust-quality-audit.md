@@ -6,30 +6,31 @@ resolved scope. Ordinary Rust coding never selects it.
 
 Load the strict audit projection at
 `../language-quality/rust/strict-audit.json` and the recorder contract at
-`../language-quality/rust/audit-recording.md`. Follow
-`../language-quality/rust/tool-bootstrap.md` to ensure the current Cargo-native
-tool and pinned audit scanner without human installation. Load
+`../language-quality/rust/audit-recording.md`. Take the Cargo-native tool from
+the route's absolute `tools` path; `../language-quality/rust/tool-bootstrap.md`
+covers only the pinned audit scanner and never a hand build. Load
 `../language-quality/rust/evidence-collection.md` only when resolving or
 collecting mechanical evidence. Do not load the everyday authoring projection.
 
 ## Resolve before mutation
 
-1. Check for the marked Rust activation block in the applicable `AGENTS.md`,
-   `docs/knowledge/contracts/rust-quality-profile.json`, and
-   `docs/knowledge/contracts/rust-quality-deviations.json`. If any are missing, choose the
-   narrowest Rust-owning directory and run
+1. Check for `docs/knowledge/contracts/rust-quality-profile.json` and
+   `docs/knowledge/contracts/rust-quality-deviations.json`. If either is
+   missing, choose the narrowest Rust-owning directory and run
    `effigy skill run --path <installed-package-root> rust-quality:setup --repo <consumer-root> -- apply <absolute-target-root> <scope-directory>`.
    Do not ask the operator to copy templates or populate discoverable paths.
-   Then require production-valid `strict` and resolve every declared Cargo
-   manifest, toolchain policy path, exclusion, and effective MSRV. Stop only on
-   unresolved repository policy or conflicting existing setup.
+   Audit never opts a repository in to everyday authoring, so it never needs
+   that activation block. Then require production-valid `strict` and resolve
+   every declared Cargo manifest, toolchain policy path, exclusion, and
+   effective MSRV. Stop only on unresolved repository policy or conflicting
+   existing setup.
 2. Resolve scope from explicit intent:
    - **worktree** for current, uncommitted, staged, unstaged, tranche, or diff
      requests;
    - **repository** for whole repository, codebase, workspace, or all-crates
      requests.
    Ask when neither meaning is safely recoverable.
-3. Run the verified tool's `inspect` operation. It uses Git state for staged,
+3. Run the routed tool's `inspect` operation. It uses Git state for staged,
    unstaged, deleted, and untracked worktree evidence and Cargo metadata for
    nested workspaces, packages, targets, features, and MSRV declarations.
    Worktree scope fails closed without a dirty Rust anchor.

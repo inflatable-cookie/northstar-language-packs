@@ -467,6 +467,9 @@ fn validate_activation_surface(package_root) {
 
     require(mode.contains("Do not load `strict-audit.json`"), "authoring mode can load the audit projection");
     require(mode.contains("Re-entry at task start and coherent batch closeout"), "authoring mode lacks re-entry contract");
+    require(mode.contains("`everyday_authoring` is `true`") && mode.contains("returns `unavailable`") &&
+        mode.contains("returns `degraded`") && mode.contains("--everyday-authoring"),
+        "authoring mode does not gate on the repository opt-in and its degradation");
     require(scoped.contains("never route it through everyday authoring"), "scoped activation blurs audit intent");
     require(scoped.contains("northstar:rust-quality:start") && scoped.contains("northstar:rust-quality:end"),
         "scoped activation lacks idempotent setup markers");
@@ -497,6 +500,10 @@ fn validate_setup_surface(package_root) {
     require(setup.contains("repeat setup was not idempotent") &&
         setup.contains("setup overwrote existing AGENTS instructions"),
         "Rust setup lacks preservation and idempotency proof");
+    require(setup.contains("--everyday-authoring") &&
+        setup.contains("setup installed everyday-authoring activation without the repository opt-in") &&
+        setup.contains("activation marker is not valid JSON"),
+        "Rust setup does not gate everyday authoring on the repository opt-in");
     require(!setup.contains("process::") && !setup.contains("command::"),
         "Rust setup can launch a subprocess");
     require(setup.contains("catalog_root"),
@@ -528,22 +535,34 @@ fn validate_audit_surface(package_root) {
     for operation in ["inspect", "plan", "init", "assess", "extend", "collect", "complete", "finalize"] {
         require(recording.contains("<tool> " + operation), "Rust recording contract lacks " + operation);
     }
-    require(bootstrap.contains("The crate is `tools/rust-quality/` relative to the installed Rust package."),
-        "Rust tool bootstrap lacks installed Rust package root phrasing");
+    require(bootstrap.contains("The package declares one buildable tool") &&
+        bootstrap.contains("records the binary in the installation receipt") &&
+        bootstrap.contains("absolute `path`") &&
+        bootstrap.contains("Never add the binary's directory to `PATH`") &&
+        bootstrap.contains("Never build inside the installed package") &&
+        bootstrap.contains("explicit target directory"),
+        "Rust tool bootstrap does not read the routed tool path and its install boundary");
     require(!bootstrap.contains("installed Northstar skill") &&
         !bootstrap.contains("installed skill") &&
         !bootstrap.contains("skill source"),
         "Rust tool bootstrap retains stale root-dependent skill phrasing");
-    require(!bootstrap.contains("--path <crate> --root"),
-        "Rust tool bootstrap builds the installed crate without --target-dir");
-    require(bootstrap.contains("cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <cache>/probe") &&
-        bootstrap.contains("cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <payload-root>") &&
-        bootstrap.contains("source_payload_sha256") &&
-        bootstrap.contains("Never add") && bootstrap.contains("cache `bin`") && bootstrap.contains("`PATH`"),
-        "Rust tool bootstrap lacks locked payload-addressed installation");
+    // The lifecycle builds the declared tool. A hand build in this doc is the
+    // failure the package no longer permits, so each of its shapes is refused.
+    require(!bootstrap.contains("cargo install --locked --offline --path") &&
+        !bootstrap.contains("--path <crate>") &&
+        !bootstrap.contains("--target-dir <cache>") &&
+        !bootstrap.contains("source_payload_sha256") &&
+        !bootstrap.contains("probe-receipt.json"),
+        "Rust tool bootstrap builds the engine by hand");
     require(bootstrap.contains("cargo install --locked --offline stopslop --version 0.5.1") &&
         bootstrap.contains("stopslop 0.5.1") && bootstrap.contains("audit-only"),
         "Rust audit scanner lacks pinned agent-owned installation");
+    require(mode.contains("route's absolute `tools` path") &&
+        mode.contains("Audit never opts a repository in to everyday authoring") &&
+        !mode.contains("to ensure the current Cargo-native"),
+        "Rust audit mode still instructs a hand tool build or an everyday opt-in");
+    require(recording.contains("route's absolute `tools` path"),
+        "Rust recording contract does not take the tool from the route");
     require(evidence.contains("stopslop_json") && evidence.contains("SLOP039") &&
         evidence.contains("explicit limitation, not clean evidence"),
         "Rust evidence contract lacks captured forwarder scanning");
@@ -598,10 +617,46 @@ fn require_command(commands, name) {
     require(commands.contains(name), "runtime capabilities omit required command: " + name);
 }
 
-fn validate_manifest(manifest) {
+fn validate_tool_declaration(package_root, manifest) {
+    // The lifecycle builds this tool during acquisition, outside the immutable
+    // install, and records the binary in the installation receipt. The
+    // declaration must name a payload source, a declared build command, and both
+    // an explicit target directory and output root, so a build can never default
+    // to writing inside an installed tree.
+    require(manifest.contains("tool"), "package declares no buildable tool");
+    let tool = manifest["tool"];
+    for key in ["id", "source_path", "build"] {
+        require_key(tool, key, "declared tool");
+    }
+    require(tool["id"] == "rust-quality", "declared tool id drifted");
+    require(tool["source_path"] == "tools/rust-quality", "declared tool source path drifted");
+    require(fs::is_dir(path::join(package_root, tool["source_path"])),
+        "declared tool source path is missing from the package: " + tool["source_path"]);
+    let build = tool["build"];
+    for key in ["command", "argv", "output"] {
+        require_key(build, key, "declared tool build");
+    }
+    require_command(manifest["runtime_capabilities"]["required_commands"], build["command"]);
+    require_array(build["argv"], "declared tool build argv");
+    require(build["argv"].len() > 0, "declared tool build argv is empty");
+    let placeholders = [];
+    for argument in build["argv"] {
+        for token in ["{source}", "{target_dir}", "{root}"] {
+            if argument.contains(token) && !placeholders.contains(token) {
+                placeholders.push(token);
+            }
+        }
+    }
+    require(placeholders.contains("{source}"), "declared tool build does not name its {source} copy");
+    require(placeholders.contains("{target_dir}"), "declared tool build does not name an explicit {target_dir}");
+    require(placeholders.contains("{root}"), "declared tool build does not name an explicit {root}");
+    require(build["output"] == "bin/northstar-rust-quality", "declared tool output drifted");
+}
+
+fn validate_manifest(package_root, manifest) {
     require(manifest["schema_version"] == "1.0.0", "unsupported package schema version");
     require(manifest["package_id"] == "@northstar/rust-quality", "package id drifted");
-    require(manifest["version"] == "0.2.2", "package version drifted");
+    require(manifest["version"] == "0.2.3", "package version drifted");
     require(manifest["kind"] == "language-quality", "package kind drifted");
     require(manifest["compatible_core_range"] == ">=0.2.0 <1.0.0", "core range drifted");
     require(manifest["supported_languages"] == ["rust"], "supported languages drifted");
@@ -617,6 +672,7 @@ fn validate_manifest(manifest) {
     require_command(manifest["runtime_capabilities"]["required_commands"], "git");
     require_command(manifest["runtime_capabilities"]["required_commands"], "sh");
     require(manifest["self_check"]["entrypoint"] == "scripts/self-check.sh", "self-check entrypoint drifted");
+    validate_tool_declaration(package_root, manifest);
     require(manifest["self_check"]["invocation"]["type"] == "direct", "self-check must use direct invocation");
     require(manifest["self_check"]["validated_profile_versions"] == ["1.0.0"],
         "validated profile versions drifted");
@@ -843,10 +899,10 @@ fn expect_rejection(label, catalogue, expected) {
     require(rejected, label + " unexpectedly passed");
 }
 
-fn expect_manifest_rejection(label, manifest, expected) {
+fn expect_manifest_rejection(package_root, label, manifest, expected) {
     let rejected = false;
     try {
-        validate_manifest(manifest);
+        validate_manifest(package_root, manifest);
     } catch (error) {
         rejected = true;
         require(error.to_string().contains(expected), label + " rejected for wrong reason: " + error);
@@ -897,18 +953,34 @@ fn self_test(package_root, catalogue_path, manifest_path) {
 
     let wrong_package = json::read_file(manifest_path);
     wrong_package["package_id"] = "@northstar/wrong-package";
-    expect_manifest_rejection("package id", wrong_package, "package id drifted");
+    expect_manifest_rejection(package_root, "package id", wrong_package, "package id drifted");
 
     let missing_workflow = json::read_file(manifest_path);
     missing_workflow["available_workflows"] = ["explicit_audit_repair"];
-    expect_manifest_rejection("available workflows", missing_workflow, "available workflows drifted");
+    expect_manifest_rejection(package_root, "available workflows", missing_workflow, "available workflows drifted");
+
+    let no_tool = json::read_file(manifest_path);
+    no_tool.remove("tool");
+    expect_manifest_rejection(package_root, "missing tool declaration", no_tool, "declares no buildable tool");
+
+    let no_target = json::read_file(manifest_path);
+    no_target["tool"]["build"]["argv"] = ["install", "--locked", "--path", "{source}", "--root", "{root}"];
+    expect_manifest_rejection(package_root, "tool build without a target directory", no_target,
+        "explicit {target_dir}");
+
+    let undeclared_command = json::read_file(manifest_path);
+    undeclared_command["tool"]["build"]["command"] = "cargo-wrap";
+    expect_manifest_rejection(package_root, "tool build command not declared", undeclared_command,
+        "runtime capabilities omit required command");
 
     let bootstrap_path = path::join(package_root, "references/language-quality/rust/tool-bootstrap.md");
     let original_bootstrap = fs::read_file(bootstrap_path);
-    let stale_bootstrap = str::replace(original_bootstrap, "installed Rust package", "installed Northstar skill");
-    expect_bootstrap_rejection(package_root, "stale tool-bootstrap phrasing", stale_bootstrap, "installed Rust package root phrasing");
-    let bare_bootstrap = str::replace(original_bootstrap, " --target-dir <cache>/target --root <cache>/probe", " --root <cache>/probe");
-    expect_bootstrap_rejection(package_root, "bare installed-crate build", bare_bootstrap, "without --target-dir");
+    let hand_build = original_bootstrap +
+        "\ncargo install --locked --offline --path <crate> --target-dir <cache>/target --root <cache>/probe\n";
+    expect_bootstrap_rejection(package_root, "hand engine build", hand_build, "builds the engine by hand");
+    let unrouted = str::replace(original_bootstrap, "records the binary in the installation receipt", "");
+    expect_bootstrap_rejection(package_root, "unrouted tool", unrouted,
+        "does not read the routed tool path");
 }
 
 fn expect_bootstrap_rejection(package_root, label, bad_text, expected) {
@@ -982,6 +1054,8 @@ fn test_self_check_wrapper(package_root) {
         !proof_text.contains("\"$installed/tools/rust-quality\" --root") &&
         !proof_text.contains("tools/rust-quality/Cargo.toml\"\n"),
         "installed-invocation proof builds the installed crate without --target-dir");
+    require(proof_text.contains("declared tool") && proof_text.contains("--everyday-authoring"),
+        "installed-invocation proof does not exercise the declared tool build and the everyday opt-in");
 
     let missing_effigy = process::run(wrapper, [package_root], #{
         cwd: package_root,
@@ -1023,7 +1097,7 @@ let catalogue = json::read_file(catalogue_path);
 let manifest = json::read_file(manifest_path);
 
 validate_inventory(package_root);
-validate_manifest(manifest);
+validate_manifest(package_root, manifest);
 validate_catalogue(catalogue);
 let candidate_path = path::join(payload_root, "detector-candidates.json");
 let mapping_path = path::join(package_root, "tools/rust-quality/assets/diagnostic-mapping.json");
@@ -1062,4 +1136,4 @@ for filename in ["catalogue.json", "strict-authoring.json", "strict-audit.json"]
     require(!text.contains("answer_key") && !text.contains("expected_findings"), filename + " leaks prototype oracle data");
 }
 
-log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 11 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday and explicit audit)");
+log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 11 catalogue/manifest/bootstrap, declared tool recipe, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday opt-in and explicit audit)");
