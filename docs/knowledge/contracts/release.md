@@ -44,6 +44,10 @@ file. Current values are in
   digests for both packages.
 - The identities recorded in
   [architecture](../architecture.md#packages) match the script.
+- The installed-route proof reads the pinned Northstar source from
+  `NORTHSTAR_SOURCE` or its third argument. Clone `inflatable-cookie/northstar`
+  into a scratch checkout, check out `69e4d5d`, and point `NORTHSTAR_SOURCE` at
+  it. A sibling checkout is only a local fallback; a Queue worker has none.
 
 ## Roll back
 

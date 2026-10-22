@@ -1,12 +1,23 @@
 #!/bin/sh
 # Public installed-route proof for @northstar/rust-quality.
-# Host: optional [package_root]; cwd does not have to be the package.
+# Host: optional [package_root] [expected_tree_digest] [northstar_source];
+# cwd does not have to be the package.
+# Northstar source: pass a checkout (or bare clone) that contains the pinned
+# commit as the third argument or in NORTHSTAR_SOURCE. A sibling checkout is
+# only a local fallback, so a Queue worker points NORTHSTAR_SOURCE at a copy it
+# made in its own temporary directory.
 # Uses a throwaway installed copy, cross-boundary engine migration, and a decoy consumer.
 set -eu
 
 root="${1:-$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)}"
 root="$(CDPATH= cd -- "$root" && pwd -P)"
 expected_tree="${2:-${EXPECTED_TREE_DIGEST:-}}"
+northstar_commit="69e4d5dea3daa4f6133d7363d39c1a0f72848435"
+northstar_source="${NORTHSTAR_SOURCE:-}"
+if [ "$#" -ge 3 ] && [ -n "${3:-}" ]; then
+    northstar_source="$3"
+fi
+self_path="$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)/${0##*/}"
 if [ ! -f "$root/northstar-package.json" ] || [ ! -f "$root/effigy.toml" ]; then
     echo "[rust-quality:installed-route] missing package at $root" >&2
     exit 1
@@ -25,6 +36,36 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 if ! command -v python3 >/dev/null 2>&1; then
     echo "[rust-quality:installed-route] missing required command: python3" >&2
+    exit 1
+fi
+
+# Resolve the pinned Northstar source before doing any work. Queue workers have
+# no sibling checkout and must not write through ../ paths, so the source is
+# explicit and its absence is a plain, early failure.
+source_has_commit() {
+    [ -n "$1" ] &&
+        git -C "$1" rev-parse --git-dir >/dev/null 2>&1 &&
+        git -C "$1" rev-parse --verify --quiet "$northstar_commit^{commit}" >/dev/null 2>&1
+}
+
+find_northstar() {
+    for candidate in "$root/../northstar" "$root/../../northstar" "$root/../../../northstar"; do
+        if source_has_commit "$candidate"; then
+            (CDPATH= cd -- "$candidate" && pwd -P)
+            return 0
+        fi
+    done
+    return 1
+}
+
+if [ -n "$northstar_source" ]; then
+    if ! source_has_commit "$northstar_source"; then
+        echo "[rust-quality:installed-route] Northstar source at $northstar_source is not a git checkout containing commit $northstar_commit" >&2
+        exit 1
+    fi
+    northstar_sibling="$(CDPATH= cd -- "$northstar_source" && pwd -P)"
+elif ! northstar_sibling="$(find_northstar)"; then
+    echo "[rust-quality:installed-route] Northstar source not supplied and no sibling checkout at commit $northstar_commit exists; clone inflatable-cookie/northstar into a temporary directory, check out $northstar_commit, and point NORTHSTAR_SOURCE at it (or pass it as the third argument)" >&2
     exit 1
 fi
 
@@ -171,27 +212,43 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:4b7f9730bbe64867dd2c22126e844be351717207e85e5aa2784afc140f687df3'
+expected_manifest = 'sha256:5d074a0310eef7d241c61a82f2dc746413e3c55326d9e9327ea7095ada26ded6'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
-find_northstar() {
-    for candidate in "$root/../northstar" "$root/../../northstar" "$root/../../../northstar"; do
-        if [ -d "$candidate/.git" ] && git -C "$candidate" rev-parse --verify 69e4d5dea3daa4f6133d7363d39c1a0f72848435 >/dev/null 2>&1; then
-            (CDPATH= cd -- "$candidate" && pwd -P)
-            return 0
-        fi
-    done
-    return 1
-}
-
-# 2. Mandatory Northstar Sibling Resolution & Verification
-if ! northstar_sibling="$(find_northstar)"; then
-    echo "[rust-quality:installed-route] mandatory Northstar sibling repository (with commit 69e4d5dea3daa4f6133d7363d39c1a0f72848435) not found" >&2
+# Negative: a missing or wrong Northstar source fails plainly instead of being
+# silently skipped.
+# The fixture roots sit deep inside the scratch tree so the sibling fallback can
+# never find a real checkout.
+no_source_root="$work/no-source/a/b/c"
+mkdir -p "$no_source_root"
+cp "$root/northstar-package.json" "$root/effigy.toml" "$no_source_root/"
+if run_capture "$transcripts/missing-source.txt" \
+    env NORTHSTAR_SOURCE= "$self_path" "$no_source_root"
+then
+    echo "[rust-quality:installed-route] missing Northstar source unexpectedly succeeded" >&2
+    cat "$transcripts/missing-source.txt" >&2
     exit 1
 fi
+require_file_contains "$transcripts/missing-source.txt" \
+    "Northstar source not supplied" \
+    "missing Northstar source"
 
-# 3. Deterministic 54-Source Map and Parity Proof against ../northstar at 69e4d5d
+empty_northstar="$work/empty-northstar"
+mkdir -p "$empty_northstar"
+(CDPATH= cd -- "$empty_northstar" && git init -q)
+if run_capture "$transcripts/wrong-source.txt" \
+    env NORTHSTAR_SOURCE="$empty_northstar" "$self_path" "$root"
+then
+    echo "[rust-quality:installed-route] Northstar source without the pinned commit unexpectedly succeeded" >&2
+    cat "$transcripts/wrong-source.txt" >&2
+    exit 1
+fi
+require_file_contains "$transcripts/wrong-source.txt" \
+    "is not a git checkout containing commit" \
+    "wrong Northstar source"
+
+# 2. Deterministic 54-Source Map and Parity Proof against the pinned source at 69e4d5d
 python3 -c "
 import os, subprocess, hashlib, sys
 
@@ -264,8 +321,8 @@ ADAPTED_EXPECTED = {
     'references/modes/rust-quality-authoring.md': 'sha256:02195367eda1a601f60fde5cd8f7ba9d5b00cbab4468e791d4fc1fc7ab023ae5',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:3f1ff53005b695d3c7a0fb5b647d0038d0eabe381e5a0af4a377cda1705d87f8',
-    'scripts/rust-quality-setup.rhai': 'sha256:7fb3f76a0b6a21fa4bc9e0e48c86596f76358a8ebc75ab31aad765f3171c6ae3',
+    'scripts/check-rust-quality.rhai': 'sha256:82275076ead89f680b718a738df91cd37c363a5a8bae9b5e0fe252e22c75f54b',
+    'scripts/rust-quality-setup.rhai': 'sha256:e3659a9c25dd771dc47687d06aeb69a8dd1dc6e1df88dae14d62c5d5f5c92386',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -329,7 +386,7 @@ finally:
         f.write(orig_a)
 " "$installed" "$northstar_sibling"
 
-# 4. Materialize and Build Frozen Producer Engine strictly from commit 69e4d5d
+# 3. Materialize and Build Frozen Producer Engine strictly from commit 69e4d5d
 producer_src="$work/producer-src"
 mkdir -p "$producer_src"
 git -C "$northstar_sibling" archive "69e4d5dea3daa4f6133d7363d39c1a0f72848435" skills/northstar/tools/rust-quality | tar -x -C "$producer_src" --strip-components=3
@@ -361,7 +418,7 @@ expected_listing = 'sha256:b01c291c32813c2f3240d18c520c5e78cbd5a9935056cad9ce8a5
 assert listing_digest == expected_listing, f'Producer listing digest mismatch: {listing_digest} != {expected_listing}'
 " "$producer_src/rust-quality"
 
-# Mismatched sibling / commit counterexample: non-existent/tampered commit fails extraction
+# Mismatched source / commit counterexample: non-existent/tampered commit fails extraction
 if git -C "$northstar_sibling" archive "0000000000000000000000000000000000000000" skills/northstar/tools/rust-quality >/dev/null 2>&1; then
     echo "[rust-quality:installed-route] extraction from invalid commit unexpectedly succeeded" >&2
     exit 1
@@ -371,7 +428,7 @@ ns_target="$work/ns-target"
 cargo build --manifest-path "$producer_src/rust-quality/Cargo.toml" --target-dir "$ns_target" >/dev/null 2>&1
 producer_bin="$ns_target/debug/northstar-rust-quality"
 
-# 5. Cross-Boundary Migration and Pre-Extraction Ledger Compatibility Proof
+# 4. Cross-Boundary Migration and Pre-Extraction Ledger Compatibility Proof
 compat_repo="$work/compat-consumer"
 mkdir -p "$compat_repo/src" "$compat_repo/tests" "$compat_repo/docs/knowledge/contracts"
 cat > "$compat_repo/Cargo.toml" <<'EOF'
@@ -506,7 +563,7 @@ if [ "$dev_before" != "$dev_after" ]; then
     exit 1
 fi
 
-# 6. Decoy Consumer and Installed Setup Verification
+# 5. Decoy Consumer and Installed Setup Verification
 cat > "$consumer/effigy.toml" <<'EOF'
 [manifest]
 minimum_effigy_version = "0.12.0"
@@ -577,9 +634,6 @@ then
     exit 1
 fi
 require_file_contains "$transcripts/empty-relay.json" \
-    '\"--\"' \
-    "empty relay args"
-require_file_contains "$transcripts/empty-relay.json" \
     "usage: rust-quality:setup" \
     "empty relay usage"
 
@@ -594,9 +648,8 @@ fi
 require_file_contains "$transcripts/setup-apply.json" "\"catalog_alias\": \"rust-quality\"" "setup catalog alias"
 require_file_contains "$transcripts/setup-apply.json" "\"root\": \"$installed\"" "setup source root"
 require_file_contains "$transcripts/setup-apply.json" "\"root\": \"$consumer\"" "setup target root"
-require_file_contains "$transcripts/setup-apply.json" \
-    '\"--\",\"apply\"' \
-    "setup relay args"
+require_file_contains "$transcripts/setup-apply.json" '"exit_status": 0' "setup exit status"
+require_file_lacks "$transcripts/setup-apply.json" "usage: rust-quality:setup" "setup relay usage"
 require_file_lacks "$transcripts/setup-apply.json" "DECOY-NORTHSTAR-SETUP-RAN" "setup decoy task"
 require_file_contains "$consumer/AGENTS.md" "northstar:rust-quality:start" "setup activation"
 require_file_lacks "$consumer/AGENTS.md" "DECOY ACTIVATION FROM CONSUMER ROOT" "setup decoy template"
@@ -620,7 +673,7 @@ if [ "$before" != "$after" ]; then
     exit 1
 fi
 
-# 7. Cargo Engine Suite and Tamper Negatives
+# 6. Cargo Engine Suite and Tamper Negatives
 if ! run_capture "$transcripts/cargo-test.txt" \
     cargo test --manifest-path "$installed/tools/rust-quality/Cargo.toml" --target-dir "$work/engine-test-build"
 then
@@ -687,7 +740,7 @@ then
 fi
 require_file_contains "$transcripts/tamper-mapping.txt" "install.payload_mismatch" "tampered mapping rejection"
 
-# 8. Lifecycle execution proof: inspect running against consumer Git repo
+# 7. Lifecycle execution proof: inspect running against consumer Git repo
 printf '\npub fn multiply(a: i32, b: i32) -> i32 { a * b }\n' >> "$consumer/src/lib.rs"
 discovery_path="$work/discovery.json"
 if ! run_capture "$transcripts/inspect.txt" \
@@ -701,7 +754,7 @@ require_file_contains "$discovery_path" "\"schema_version\": \"northstar.rust-qu
 require_file_contains "$discovery_path" "\"scope\": \"worktree\"" "discovery scope"
 require_file_contains "$discovery_path" "\"path\": \"src/lib.rs\"" "discovery anchor"
 
-# 9. Adapter grammar and exact-command closure checks
+# 8. Adapter grammar and exact-command closure checks
 staged="$work/staged"
 copy_package "$staged"
 if ! run_capture "$transcripts/staged-qa.txt" \
@@ -771,4 +824,4 @@ mv "$evil/agents/openai.yaml.next" "$evil/agents/openai.yaml"
 expect_adapter_rejection "$evil" "suffixed-command-policy" \
     "agent policy is not the declared exact-command form"
 
-echo "Rust quality installed route: OK (spec-034 canonical tree digest and mutation rejection, mandatory Northstar sibling at 69e4d5d, 54-source deterministic parity and adapted mutation rejection, pinned commit 69e4d5d producer engine build and mismatched-sibling rejection, cross-boundary pre-extraction ledger migration and byte preservation, public skill-run setup, relay sentinel, decoy catalogue ignored, engine cargo tests and tamper rejection, probe verify-install, adapter grammar and exact-command closure enforced)"
+echo "Rust quality installed route: OK (spec-034 canonical tree digest and mutation rejection, explicit or pinned-source Northstar resolution with plain missing-source rejection, 54-source deterministic parity and adapted mutation rejection, pinned commit 69e4d5d producer engine build and mismatched-source rejection, cross-boundary pre-extraction ledger migration and byte preservation, public skill-run setup, relay sentinel, decoy catalogue ignored, engine cargo tests and tamper rejection, probe verify-install, adapter grammar and exact-command closure enforced)"
