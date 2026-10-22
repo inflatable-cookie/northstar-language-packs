@@ -13,6 +13,10 @@ Use a Northstar-owned cache outside the consumer repository:
 Resolve those variables to absolute paths before invoking Cargo. Never add the
 cache `bin` directory to `PATH`; invoke the binary by its absolute path.
 
+Every Cargo build of `<crate>` passes `--target-dir <cache>/target`. Without it,
+Cargo writes `target/` inside the installed package, which the immutable store
+rejects. Never build inside `<crate>`.
+
 ## Ensure the current payload
 
 1. Set `<crate>` to the installed package's `tools/rust-quality` directory and
@@ -20,7 +24,7 @@ cache `bin` directory to `PATH`; invoke the binary by its absolute path.
 2. Ensure `<cache>/probe/bin/northstar-rust-quality` exists. If missing, run:
 
    ```text
-   cargo install --locked --offline --path <crate> --root <cache>/probe
+   cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <cache>/probe
    ```
 
    Retry without `--offline` only when Cargo reports a missing cached
@@ -36,8 +40,11 @@ cache `bin` directory to `PATH`; invoke the binary by its absolute path.
    A stale probe exits non-zero but still writes the receipt. Read
    `source_payload_sha256` from that receipt; do not infer it from a version.
 4. Select `<payload-root>` as `<cache>/payloads/<source_payload_sha256>`. If its
-   binary is missing, run the same locked Cargo install with
-   `--root <payload-root>`.
+   binary is missing, run:
+
+   ```text
+   cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <payload-root>
+   ```
 5. Invoke the payload binary's `verify-install` operation and write
    `<payload-root>/install-receipt.json`. Continue only when `current` is true
    and the embedded and source payload hashes match.

@@ -532,7 +532,10 @@ fn validate_audit_surface(package_root) {
         !bootstrap.contains("installed skill") &&
         !bootstrap.contains("skill source"),
         "Rust tool bootstrap retains stale root-dependent skill phrasing");
-    require(bootstrap.contains("cargo install --locked --offline --path") &&
+    require(!bootstrap.contains("--path <crate> --root"),
+        "Rust tool bootstrap builds the installed crate without --target-dir");
+    require(bootstrap.contains("cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <cache>/probe") &&
+        bootstrap.contains("cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <payload-root>") &&
         bootstrap.contains("source_payload_sha256") &&
         bootstrap.contains("Never add") && bootstrap.contains("cache `bin`") && bootstrap.contains("`PATH`"),
         "Rust tool bootstrap lacks locked payload-addressed installation");
@@ -596,7 +599,7 @@ fn require_command(commands, name) {
 fn validate_manifest(manifest) {
     require(manifest["schema_version"] == "1.0.0", "unsupported package schema version");
     require(manifest["package_id"] == "@northstar/rust-quality", "package id drifted");
-    require(manifest["version"] == "0.2.0", "package version drifted");
+    require(manifest["version"] == "0.2.1", "package version drifted");
     require(manifest["kind"] == "language-quality", "package kind drifted");
     require(manifest["compatible_core_range"] == ">=0.2.0 <1.0.0", "core range drifted");
     require(manifest["supported_languages"] == ["rust"], "supported languages drifted");
@@ -902,6 +905,8 @@ fn self_test(package_root, catalogue_path, manifest_path) {
     let original_bootstrap = fs::read_file(bootstrap_path);
     let stale_bootstrap = str::replace(original_bootstrap, "installed Rust package", "installed Northstar skill");
     expect_bootstrap_rejection(package_root, "stale tool-bootstrap phrasing", stale_bootstrap, "installed Rust package root phrasing");
+    let bare_bootstrap = str::replace(original_bootstrap, " --target-dir <cache>/target --root <cache>/probe", " --root <cache>/probe");
+    expect_bootstrap_rejection(package_root, "bare installed-crate build", bare_bootstrap, "without --target-dir");
 }
 
 fn expect_bootstrap_rejection(package_root, label, bad_text, expected) {
@@ -970,6 +975,11 @@ fn test_self_check_wrapper(package_root) {
         proof_text.contains("rust-quality:setup") &&
         proof_text.contains("DECOY-NORTHSTAR-SETUP-RAN"),
         "installed-invocation proof does not exercise the public skill-run surface and negative fixtures");
+    require(proof_text.contains("--path \"$installed/tools/rust-quality\" --target-dir") &&
+        proof_text.contains("cargo test --manifest-path \"$installed/tools/rust-quality/Cargo.toml\" --target-dir") &&
+        !proof_text.contains("\"$installed/tools/rust-quality\" --root") &&
+        !proof_text.contains("tools/rust-quality/Cargo.toml\"\n"),
+        "installed-invocation proof builds the installed crate without --target-dir");
 
     let missing_effigy = process::run(wrapper, [package_root], #{
         cwd: package_root,
@@ -1050,4 +1060,4 @@ for filename in ["catalogue.json", "strict-authoring.json", "strict-audit.json"]
     require(!text.contains("answer_key") && !text.contains("expected_findings"), filename + " leaks prototype oracle data");
 }
 
-log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 10 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday and explicit audit)");
+log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 11 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday and explicit audit)");
