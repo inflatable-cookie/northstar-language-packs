@@ -142,7 +142,7 @@ before="$(tree_listing "$installed")"
 
 # 1. Spec-034 Canonical Package-Tree and Manifest Digest Verification (with raw-framing mutation negatives)
 python3 -c "
-import os, hashlib, stat, sys
+import os, hashlib, json, stat, sys
 
 root = sys.argv[1]
 expected_tree = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] else ''
@@ -211,9 +211,21 @@ finally:
         os.remove(stray_file)
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
-    manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:5d074a0310eef7d241c61a82f2dc746413e3c55326d9e9327ea7095ada26ded6'
+    manifest_bytes = fp.read()
+manifest_digest = f'sha256:{hashlib.sha256(manifest_bytes).hexdigest()}'
+expected_manifest = 'sha256:557364ace400f8e8f41beb183a8fb69c02155b137dfa60642fa6de1bddd5f673'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
+
+manifest = json.loads(manifest_bytes)
+tool = manifest.get('tool')
+assert isinstance(tool, dict), 'Manifest declares no buildable tool'
+assert tool.get('id') == 'northstar-rust-quality', 'Tool id drifted'
+assert tool.get('source_path') == 'tools/rust-quality', 'Tool source path drifted'
+assert tool.get('build', {}).get('command') == 'cargo', 'Tool build command drifted'
+assert tool.get('build', {}).get('output') == 'bin/northstar-rust-quality', 'Tool build output drifted'
+argv = tool.get('build', {}).get('argv', [])
+assert any('{target_dir}' in arg for arg in argv), 'Tool build lacks an explicit target directory'
+assert any('{root}' in arg for arg in argv), 'Tool build lacks an output root'
 " "$installed" "$expected_tree"
 
 # Negative: a missing or wrong Northstar source fails plainly instead of being
@@ -276,7 +288,7 @@ SOURCE_MAP = {
     'skills/northstar/references/language-quality/rust/closeout.schema.json': ('references/language-quality/rust/closeout.schema.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/detector-candidates.json': ('references/language-quality/rust/detector-candidates.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/detector-candidates.schema.json': ('references/language-quality/rust/detector-candidates.schema.json', 'byte_exact'),
-    'skills/northstar/references/language-quality/rust/evidence-collection.md': ('references/language-quality/rust/evidence-collection.md', 'byte_exact'),
+    'skills/northstar/references/language-quality/rust/evidence-collection.md': ('references/language-quality/rust/evidence-collection.md', 'package_adapted'),
     'skills/northstar/references/language-quality/rust/profile.schema.json': ('references/language-quality/rust/profile.schema.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/strict-audit.json': ('references/language-quality/rust/strict-audit.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/strict-authoring.json': ('references/language-quality/rust/strict-authoring.json', 'byte_exact'),
@@ -315,13 +327,14 @@ SOURCE_MAP = {
 
 ADAPTED_EXPECTED = {
     'SKILL.md': 'sha256:83afd4b0c0d776753ea47affa164d7d3efa95dfa33925c53b3b379b9401d982c',
-    'references/language-quality/rust/tool-bootstrap.md': 'sha256:1d0668b809c868341f8895fcef666b3c3175b406c4942a6c60306e91534b7696',
-    'references/language-quality/rust/audit-recording.md': 'sha256:2ac6b8105f5fc294acf8d515ed681c04b29499df497302b3a49c3625803221dd',
-    'references/modes/rust-quality-audit.md': 'sha256:8d2aa192b07c456b0097897ee5a6e03967b504a409f1cad5875970e8f38bde63',
-    'references/modes/rust-quality-authoring.md': 'sha256:02195367eda1a601f60fde5cd8f7ba9d5b00cbab4468e791d4fc1fc7ab023ae5',
+    'references/language-quality/rust/tool-bootstrap.md': 'sha256:d311839a916b3fd013f5c62392538d965024d4c5102dbe0a70707936af526aa1',
+    'references/language-quality/rust/audit-recording.md': 'sha256:2cb9f152afd9f6b362feeb2eeeb7152561f4b62019d4fb3af005f9b06b6ac75f',
+    'references/language-quality/rust/evidence-collection.md': 'sha256:2c070617f9b537b5564ea3578399c369ecd1bef4a94a076a93f9e0fa0075b854',
+    'references/modes/rust-quality-audit.md': 'sha256:627ad8b3825fc007a6fbb9f3bdbce8dbfdacc9e50630bb686069546699702b17',
+    'references/modes/rust-quality-authoring.md': 'sha256:72d01cec47b0831637a89e7a8d1d4f7f76d95d558d58547f03451d728cab7255',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:82275076ead89f680b718a738df91cd37c363a5a8bae9b5e0fe252e22c75f54b',
+    'scripts/check-rust-quality.rhai': 'sha256:a7a11604abce14084e94aeaf761d14cbad3f3af1c330696e2ee20089465fcd49',
     'scripts/rust-quality-setup.rhai': 'sha256:e3659a9c25dd771dc47687d06aeb69a8dd1dc6e1df88dae14d62c5d5f5c92386',
 }
 
@@ -347,9 +360,10 @@ def verify_source_parity(pkg_root):
 
 verify_source_parity(root)
 
-assert counts['byte_exact'] == 41, f'Expected 41 byte_exact, got {counts[\"byte_exact\"]}'
+assert counts['byte_exact'] == 40, f'Expected 40 byte_exact, got {counts[\"byte_exact\"]}'
 assert counts['eof_newline_normalized'] == 4, f'Expected 4 eof_newline_normalized, got {counts[\"eof_newline_normalized\"]}'
-assert counts['package_adapted'] == 9, f'Expected 9 package_adapted, got {counts[\"package_adapted\"]}'
+assert counts['package_adapted'] == 10, f'Expected 10 package_adapted, got {counts[\"package_adapted\"]}'
+assert counts['package_adapted'] + counts['byte_exact'] + counts['eof_newline_normalized'] == 54
 
 # Negative 1: unrecorded rewrite in a byte_exact file fails closed
 tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/lib.rs')

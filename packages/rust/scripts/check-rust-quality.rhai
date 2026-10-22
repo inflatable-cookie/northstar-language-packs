@@ -528,19 +528,18 @@ fn validate_audit_surface(package_root) {
     for operation in ["inspect", "plan", "init", "assess", "extend", "collect", "complete", "finalize"] {
         require(recording.contains("<tool> " + operation), "Rust recording contract lacks " + operation);
     }
-    require(bootstrap.contains("The crate is `tools/rust-quality/` relative to the installed Rust package."),
-        "Rust tool bootstrap lacks installed Rust package root phrasing");
+    require(bootstrap.contains("The lifecycle builds the Cargo tool from `tools/rust-quality/` into the operator"),
+        "Rust tool bootstrap does not point at the lifecycle build");
+    require(bootstrap.contains("Use the absolute path the route returns in `tools`"),
+        "Rust tool bootstrap does not hand the tool path to the route output");
     require(!bootstrap.contains("installed Northstar skill") &&
         !bootstrap.contains("installed skill") &&
         !bootstrap.contains("skill source"),
         "Rust tool bootstrap retains stale root-dependent skill phrasing");
-    require(!bootstrap.contains("--path <crate> --root"),
-        "Rust tool bootstrap builds the installed crate without --target-dir");
-    require(bootstrap.contains("cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <cache>/probe") &&
-        bootstrap.contains("cargo install --locked --offline --path <crate> --target-dir <cache>/target --root <payload-root>") &&
-        bootstrap.contains("source_payload_sha256") &&
-        bootstrap.contains("Never add") && bootstrap.contains("cache `bin`") && bootstrap.contains("`PATH`"),
-        "Rust tool bootstrap lacks locked payload-addressed installation");
+    require(!bootstrap.contains("cargo install --locked --offline --path") &&
+        !bootstrap.contains("--target-dir <cache>/target") &&
+        !bootstrap.contains("--path <crate>"),
+        "Rust tool bootstrap still assigns the installed-crate build to the agent");
     require(bootstrap.contains("cargo install --locked --offline stopslop --version 0.5.1") &&
         bootstrap.contains("stopslop 0.5.1") && bootstrap.contains("audit-only"),
         "Rust audit scanner lacks pinned agent-owned installation");
@@ -601,7 +600,7 @@ fn require_command(commands, name) {
 fn validate_manifest(manifest) {
     require(manifest["schema_version"] == "1.0.0", "unsupported package schema version");
     require(manifest["package_id"] == "@northstar/rust-quality", "package id drifted");
-    require(manifest["version"] == "0.2.2", "package version drifted");
+    require(manifest["version"] == "0.2.3", "package version drifted");
     require(manifest["kind"] == "language-quality", "package kind drifted");
     require(manifest["compatible_core_range"] == ">=0.2.0 <1.0.0", "core range drifted");
     require(manifest["supported_languages"] == ["rust"], "supported languages drifted");
@@ -622,6 +621,24 @@ fn validate_manifest(manifest) {
         "validated profile versions drifted");
     require(manifest["self_check"]["validated_schema_versions"] == ["1.0.0"],
         "validated schema versions drifted");
+    let tool = manifest["tool"];
+    require(tool["id"] == "northstar-rust-quality", "tool id drifted");
+    require(tool["source_path"] == "tools/rust-quality", "tool source path drifted");
+    require(tool["build"]["command"] == "cargo", "tool build command drifted");
+    require(tool["build"]["output"] == "bin/northstar-rust-quality", "tool build output drifted");
+    require(tool["build"]["argv"].contains("--locked"), "tool build drops the locked manifest");
+    let target_dir_arg = false;
+    let output_root_arg = false;
+    for arg in tool["build"]["argv"] {
+        if arg.contains("{target_dir}") {
+            target_dir_arg = true;
+        }
+        if arg.contains("{root}") {
+            output_root_arg = true;
+        }
+    }
+    require(target_dir_arg && output_root_arg,
+        "tool build lacks an explicit target directory or output root");
 }
 
 fn expected_package_files() {
@@ -905,10 +922,13 @@ fn self_test(package_root, catalogue_path, manifest_path) {
 
     let bootstrap_path = path::join(package_root, "references/language-quality/rust/tool-bootstrap.md");
     let original_bootstrap = fs::read_file(bootstrap_path);
-    let stale_bootstrap = str::replace(original_bootstrap, "installed Rust package", "installed Northstar skill");
-    expect_bootstrap_rejection(package_root, "stale tool-bootstrap phrasing", stale_bootstrap, "installed Rust package root phrasing");
-    let bare_bootstrap = str::replace(original_bootstrap, " --target-dir <cache>/target --root <cache>/probe", " --root <cache>/probe");
-    expect_bootstrap_rejection(package_root, "bare installed-crate build", bare_bootstrap, "without --target-dir");
+    let agent_build = original_bootstrap + "\n\ncargo install --locked --offline --path tools/rust-quality\n";
+    expect_bootstrap_rejection(package_root, "agent-owned tool build", agent_build,
+        "still assigns the installed-crate build to the agent");
+    let no_route_path = str::replace(original_bootstrap,
+        "Use the absolute path the route returns in `tools`", "Use the cached binary");
+    expect_bootstrap_rejection(package_root, "missing route tool path", no_route_path,
+        "does not hand the tool path to the route output");
 }
 
 fn expect_bootstrap_rejection(package_root, label, bad_text, expected) {

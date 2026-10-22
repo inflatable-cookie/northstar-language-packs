@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Release `@northstar/rust-quality` `0.2.3`. The manifest declares the
+  `northstar-rust-quality` tool build, so the Northstar lifecycle builds the
+  Cargo tool into the operator cache with an explicit target directory outside
+  the immutable install and every route returns the absolute binary. The tool
+  bootstrap shrinks to that pointer; only the pinned audit-only `stopslop`
+  scanner is still installed by the agent.
 - Release `@northstar/rust-quality` `0.2.2`. `0.2.1` is pinned by Northstar, so
   this repair ships as a new immutable identity. The installed proof takes the
   pinned Northstar source from `NORTHSTAR_SOURCE` or a third argument and fails

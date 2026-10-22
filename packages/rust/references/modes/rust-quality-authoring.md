@@ -66,8 +66,8 @@ any mutation authority.
 - Resolve every applicable rule as compliant, a concrete finding repaired under
   existing authority, an accepted recorded deviation, report-only, or blocked.
 - At closeout only, load `../language-quality/rust/evidence-collection.md` and
-  `../language-quality/rust/tool-bootstrap.md`. Run the compact `closeout`
-  operation with explicit repository-owned selectors. It stores raw output
+  use the absolute tool path the lifecycle route returned in `tools`. Run the
+  compact `closeout` operation with explicit repository-owned selectors. It stores raw output
   outside the worktree and returns only tranche paths, applicable rules,
   normalized statuses, diagnostic identifiers, and limitations. Do not load
   the audit projection or ledger.

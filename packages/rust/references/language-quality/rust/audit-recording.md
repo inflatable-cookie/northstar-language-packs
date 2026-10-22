@@ -1,7 +1,8 @@
 # Rust Audit Recording Contract
 
-First follow `tool-bootstrap.md`. In the commands below, `<tool>` is the
-verified absolute payload binary and `<repo>` is the consumer Git root. JSON
+Use the absolute payload binary the lifecycle route returned in `tools` (see
+`tool-bootstrap.md`). In the commands below, `<tool>` is that binary and
+`<repo>` is the consumer Git root. JSON
 inputs are scratch files outside the worktree. Canonical records live under
 the repository's Git metadata at:
 

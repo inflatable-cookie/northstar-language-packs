@@ -1,7 +1,7 @@
 # Rust Mechanical Evidence Collection
 
 Load this only while assembling audit evidence or closing an everyday Rust
-tranche. First ensure the binary through `tool-bootstrap.md`.
+tranche. Use the absolute tool path the lifecycle route returned in `tools`.
 
 The tool executes an explicit JSON evidence plan. It does not discover a
 universal command graph, invoke a shell, install dependencies, fix findings, or
@@ -70,7 +70,7 @@ does not initialize or load an audit ledger.
 
 ## Exact-forwarder candidate scan
 
-For `RUST-SLOP-001`, use the verified audit-only scanner from
+For `RUST-SLOP-001`, use the verified audit-only scanner described in
 `tool-bootstrap.md` as a `scanner` request. Run it from the resolved audit root:
 
 ```json
