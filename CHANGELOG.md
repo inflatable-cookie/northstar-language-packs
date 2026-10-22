@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Release `@northstar/rust-quality` `0.2.3`. The manifest declares one
+  buildable `tool`: Northstar's lifecycle builds it during acquisition into its
+  own cache with an explicit target directory and records the absolute binary in
+  the installation receipt, so no agent runs a hand bootstrap and no build can
+  write into the immutable install. `tool-bootstrap.md` now reads that record
+  and keeps only the pinned audit scanner. Everyday authoring is opt-in per
+  repository (`everyday_authoring: true` in the language-quality activation
+  marker): setup installs the activation block and records that setting only
+  with `--everyday-authoring`, and an opted-in repository whose pack cannot
+  resolve reports `degraded` with its own Validate checks as the fallback
+  instead of failing ordinary work. Explicit audit still fails closed.
 - Release `@northstar/typescript-quality` `0.2.2`. `0.2.1` is pinned by
   Northstar, so this repair ships as a new immutable identity. The installed
   proof no longer expects the Effigy args echo; it asserts exit status 0 and no

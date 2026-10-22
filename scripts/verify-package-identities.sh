@@ -76,14 +76,14 @@ rust_pkg = os.path.join(repo_root, 'packages/rust')
 rust_count, rust_tree_digest = compute_spec_034_tree_digest(rust_pkg)
 assert rust_count == 59, f'Expected 59 Rust package files, got {rust_count}'
 
-expected_rust_tree = 'sha256:b1abdb5092b55931b5cea69d72482d85ac02ce791ca943a125eefb42203c436b'
+expected_rust_tree = 'sha256:67261b22f5cb766e83606f87425e793b385dd952baf1fae1f6348b257270ab39'
 assert rust_tree_digest == expected_rust_tree, f'Rust Spec-034 tree digest mismatch: {rust_tree_digest} != {expected_rust_tree}'
 
-expected_rust_listing = 'sha256:21c015d8202dab81e5282c6fe9b425a650425d4c7ad522bdb9cf1231b61ad5c3'
+expected_rust_listing = 'sha256:2ddb06529a98e33d06974fff24843be73b3eae16aed917547bf3f0da09c9e991'
 rust_listing = compute_listing_digest(rust_pkg)
 assert rust_listing == expected_rust_listing, f'Rust listing digest mismatch: {rust_listing} != {expected_rust_listing}'
 
-expected_rust_manifest = 'sha256:5d074a0310eef7d241c61a82f2dc746413e3c55326d9e9327ea7095ada26ded6'
+expected_rust_manifest = 'sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334'
 rust_manifest = file_sha256(os.path.join(rust_pkg, 'northstar-package.json'))
 assert rust_manifest == expected_rust_manifest, f'Rust manifest mismatch: {rust_manifest} != {expected_rust_manifest}'
 
@@ -131,4 +131,4 @@ print('Repository package release identities: OK')
 " "$root"
 
 # 3. Wire external expected tree binding into package proof
-"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:b1abdb5092b55931b5cea69d72482d85ac02ce791ca943a125eefb42203c436b"
+"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:67261b22f5cb766e83606f87425e793b385dd952baf1fae1f6348b257270ab39"
