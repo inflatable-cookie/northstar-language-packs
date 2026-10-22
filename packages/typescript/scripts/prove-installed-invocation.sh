@@ -141,9 +141,6 @@ then
     exit 1
 fi
 require_file_contains "$transcripts/empty-relay.json" \
-    '\"--\"' \
-    "empty relay args"
-require_file_contains "$transcripts/empty-relay.json" \
     "usage: typescript-quality:setup" \
     "empty relay usage"
 
@@ -158,9 +155,8 @@ fi
 require_file_contains "$transcripts/setup-apply.json" "\"catalog_alias\": \"typescript-quality\"" "setup catalog alias"
 require_file_contains "$transcripts/setup-apply.json" "\"root\": \"$installed\"" "setup source root"
 require_file_contains "$transcripts/setup-apply.json" "\"root\": \"$consumer\"" "setup target root"
-require_file_contains "$transcripts/setup-apply.json" \
-    '\"--\",\"apply\"' \
-    "setup relay args"
+require_file_contains "$transcripts/setup-apply.json" '"exit_status": 0' "setup exit status"
+require_file_lacks "$transcripts/setup-apply.json" "usage: typescript-quality:setup" "setup relay usage"
 require_file_lacks "$transcripts/setup-apply.json" "DECOY-NORTHSTAR-SETUP-RAN" "setup decoy task"
 require_file_contains "$consumer/AGENTS.md" "northstar:typescript-quality:start" "setup activation"
 require_file_lacks "$consumer/AGENTS.md" "DECOY ACTIVATION FROM CONSUMER ROOT" "setup decoy template"
@@ -217,9 +213,8 @@ then
 fi
 require_file_contains "$transcripts/record-init.json" "\"catalog_alias\": \"typescript-quality\"" "record catalog alias"
 require_file_contains "$transcripts/record-init.json" "\"root\": \"$installed\"" "record source root"
-require_file_contains "$transcripts/record-init.json" \
-    '\"--\",\"init\"' \
-    "record relay args"
+require_file_contains "$transcripts/record-init.json" '"exit_status": 0' "record exit status"
+require_file_lacks "$transcripts/record-init.json" "usage: typescript-quality:record" "record relay usage"
 require_file_lacks "$transcripts/record-init.json" "DECOY-NORTHSTAR-RECORD-RAN" "record decoy task"
 
 if ! run_capture "$transcripts/record-assess.json" \

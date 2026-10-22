@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Release `@northstar/typescript-quality` `0.2.2`. `0.2.1` is pinned by
+  Northstar, so this repair ships as a new immutable identity. The installed
+  proof no longer expects the Effigy args echo; it asserts exit status 0 and no
+  usage error. Setup skips the single Effigy relay boundary before its usage
+  check and tests that skip.
 - Release `@northstar/rust-quality` `0.2.2`. `0.2.1` is pinned by Northstar, so
   this repair ships as a new immutable identity. The installed proof takes the
   pinned Northstar source from `NORTHSTAR_SOURCE` or a third argument and fails
