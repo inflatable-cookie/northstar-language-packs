@@ -343,6 +343,34 @@ fn test_setup_rejections(northstar_skill_root) {
     require(broken_rejected, "partial activation unexpectedly passed");
 }
 
+fn test_relay_boundary() {
+    let relayed = strip_relay_boundary(["--", "apply", "/tmp/northstar-typescript-setup-target", "."]);
+    require(relayed.len() == 3 && relayed[0] == "apply" && relayed[1] == "/tmp/northstar-typescript-setup-target" &&
+        relayed[2] == ".",
+        "setup does not skip a single leading relay boundary");
+    let direct = strip_relay_boundary(["apply", "/tmp/northstar-typescript-setup-target", "."]);
+    require(direct.len() == 3 && direct[0] == "apply",
+        "setup strips arguments that are not a relay boundary");
+    require(strip_relay_boundary(["--"]).len() == 0,
+        "setup leaves the empty relay boundary in place");
+}
+
+fn strip_relay_boundary(arguments) {
+    // Effigy hands Rhai steps the literal `--` boundary between the relay
+    // selector and the forwarded operation (Effigy planner, 2026-10-22; the
+    // boundary papercut is Effigy's). Skip one leading boundary when present so
+    // the usage check sees the real operation; a fixed Effigy that omits it
+    // keeps working.
+    if arguments.len() > 0 && arguments[0] == "--" {
+        let forwarded = [];
+        for index in 1..arguments.len() {
+            forwarded.push(arguments[index]);
+        }
+        return forwarded;
+    }
+    arguments
+}
+
 fn test_consumer_decoy_ignored(package_root) {
     let consumer = fs::make_temp_dir("northstar-typescript-setup-decoy");
     fs::write_file(path::join(consumer, "package.json"), "{\"devDependencies\":{\"typescript\":\"^5.9.0\"}}\n");
@@ -367,19 +395,14 @@ let task_args = [];
 for argument in args {
     task_args.push(argument);
 }
-if task_args.len() > 0 && task_args[0] == "--" {
-    let forwarded = [];
-    for index in 1..task_args.len() {
-        forwarded.push(task_args[index]);
-    }
-    task_args = forwarded;
-}
+task_args = strip_relay_boundary(task_args);
 if task_args.len() == 1 && task_args[0] == "self-test" {
     test_mixed_workspace(northstar_skill_root);
     test_rootless_packages(northstar_skill_root);
     test_setup_rejections(northstar_skill_root);
     test_consumer_decoy_ignored(northstar_skill_root);
-    log("Northstar TypeScript quality setup self-test: OK (mixed workspace, rootless packages, overlays, preserve, idempotency, 3 negative paths)");
+    test_relay_boundary();
+    log("Northstar TypeScript quality setup self-test: OK (mixed workspace, rootless packages, overlays, preserve, idempotency, 3 negative paths, relay boundary)");
 } else if (task_args.len() == 2 || task_args.len() == 3) && task_args[0] == "apply" {
     let scope = ".";
     if task_args.len() == 3 { scope = task_args[2]; }
