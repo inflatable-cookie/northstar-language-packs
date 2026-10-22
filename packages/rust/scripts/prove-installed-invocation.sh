@@ -712,7 +712,7 @@ then
     exit 1
 fi
 require_file_contains "$transcripts/staged-qa.txt" \
-    "10 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths" \
+    "11 catalogue/manifest/bootstrap, 7 grammar, 1 existence, and 1 exact-command negative paths" \
     "installed-copy adapter closure check"
 
 expect_adapter_rejection() {
