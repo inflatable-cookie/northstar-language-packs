@@ -502,8 +502,9 @@ fn validate_setup_surface(package_root) {
         "Rust setup lacks preservation and idempotency proof");
     require(setup.contains("--everyday-authoring") &&
         setup.contains("setup installed everyday-authoring activation without the repository opt-in") &&
+        setup.contains("a non-boolean everyday_authoring value stopped explicit-audit setup") &&
         setup.contains("activation marker is not valid JSON"),
-        "Rust setup does not gate everyday authoring on the repository opt-in");
+        "Rust setup does not gate everyday authoring on the repository opt-in or treats a non-boolean setting as fatal to audit");
     require(!setup.contains("process::") && !setup.contains("command::"),
         "Rust setup can launch a subprocess");
     require(setup.contains("catalog_root"),

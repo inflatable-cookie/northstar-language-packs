@@ -9,32 +9,55 @@ fn activation_marker_path(contracts_root) {
 }
 
 fn read_activation_marker(marker_file) {
-    // The marker owns the repository's single everyday-authoring setting, so a
-    // malformed marker fails closed instead of being read as "not opted in".
+    // Only the boolean true opts a repository in; an absent, false, non-boolean
+    // or unreadable value is off. Explicit audit never depends on this file, so
+    // nothing here fails an audit setup. A present marker is returned unchanged
+    // so setup only rewrites it when the repository opts in.
     if !fs::exists(marker_file) {
         return #{};
     }
-    require(fs::is_file(marker_file), "activation marker target is not a file: " + marker_file);
-    let marker = #{};
+    if !fs::is_file(marker_file) {
+        return ();
+    }
+    let marker = ();
     try {
         marker = json::read_file(marker_file);
-    } catch (error) {
-        throw("[northstar:rust-quality-setup] activation marker is not valid JSON; repair " +
-            marker_file + " before setup: " + error.to_string());
+    } catch {
+        return ();
     }
-    require(type_of(marker) == "map", "activation marker must be an object: " + marker_file);
-    if marker.contains("everyday_authoring") {
-        require(type_of(marker["everyday_authoring"]) == "bool",
-            "activation marker everyday_authoring must be a boolean: " + marker_file);
+    if type_of(marker) != "map" {
+        return ();
     }
     marker
 }
 
 fn marker_opts_in(marker) {
-    marker.contains("everyday_authoring") && marker["everyday_authoring"] == true
+    type_of(marker) == "map" && marker.contains("everyday_authoring") &&
+        marker["everyday_authoring"] == true
+}
+
+fn marker_setting_state(marker) {
+    // "absent", "true", "false", "not_boolean", or "unreadable" (unit).
+    if type_of(marker) != "map" {
+        return "unreadable";
+    }
+    if !marker.contains("everyday_authoring") {
+        return "absent";
+    }
+    if marker["everyday_authoring"] == true {
+        return "true";
+    }
+    if marker["everyday_authoring"] == false {
+        return "false";
+    }
+    "not_boolean"
 }
 
 fn enable_everyday_authoring(marker_file, marker) {
+    // Opting in writes the marker. Refuse only when an existing marker cannot be
+    // parsed: overwriting it would lose content this task does not own.
+    require(type_of(marker) == "map",
+        "activation marker is not valid JSON; repair " + marker_file + " before opting in");
     if marker_opts_in(marker) {
         return;
     }
@@ -263,6 +286,12 @@ fn apply_setup(northstar_skill_root, target_root, scope, opt_in) {
     if !everyday && agent_state == "current" {
         log_warn("[northstar:rust-quality-setup] everyday authoring is off for this repository: the existing Rust activation block stays, and the route reports unavailable until everyday_authoring is true in " + marker_file);
     }
+    if !everyday && marker_setting_state(marker) == "not_boolean" {
+        log_warn("[northstar:rust-quality-setup] ignored " + marker_file + ": only the boolean true opts in to everyday authoring");
+    }
+    if !everyday && marker_setting_state(marker) == "unreadable" {
+        log_warn("[northstar:rust-quality-setup] ignored " + marker_file + ": it is not valid JSON, so this repository has not opted in to everyday authoring");
+    }
     log("Northstar Rust quality activation: OK (scope=" + scope +
         ", manifests=" + manifests.len() + ", toolchain_paths=" + toolchain_paths.len() +
         ", everyday_authoring=" + everyday_state + ")");
@@ -348,21 +377,44 @@ fn self_test(northstar_skill_root) {
         "<!-- northstar:rust-quality:start -->\n");
     expect_error("partial activation", || apply_setup(northstar_skill_root, broken, ".", true), "incomplete Rust activation");
 
-    // The marker owns the setting, so a malformed one fails closed instead of
-    // reading as "not opted in".
+    // Only the boolean true opts in. Any other value is off, so plain
+    // explicit-audit setup writes the contracts and leaves the marker alone.
+    let odd_marker = fs::make_temp_dir("northstar-rust-quality-setup-non-boolean-marker");
+    let odd_contracts = path::join(odd_marker, "docs/knowledge/contracts");
+    fs::create_dir(odd_contracts);
+    fs::write_file(path::join(odd_marker, "Cargo.toml"),
+        "[package]\nname = \"odd-marker\"\nversion = \"0.1.0\"\nrust-version = \"1.95\"\n");
+    fs::write_file(activation_marker_path(odd_contracts), "{\"everyday_authoring\": \"yes\"}\n");
+    apply_setup(northstar_skill_root, odd_marker, ".", false);
+    require(fs::is_file(path::join(odd_contracts, "rust-quality-profile.json")),
+        "a non-boolean everyday_authoring value stopped explicit-audit setup");
+    require(!fs::exists(path::join(odd_marker, "AGENTS.md")),
+        "a non-boolean everyday_authoring value installed everyday activation");
+    require(json::read_file(activation_marker_path(odd_contracts))["everyday_authoring"] == "yes",
+        "setup rewrote a marker it did not opt in");
+    fs::write_file(activation_marker_path(odd_contracts), "{\"everyday_authoring\": false}\n");
+    apply_setup(northstar_skill_root, odd_marker, ".", false);
+    require(!fs::exists(path::join(odd_marker, "AGENTS.md")),
+        "an explicit false installed everyday activation");
+    require(json::read_file(activation_marker_path(odd_contracts))["everyday_authoring"] == false,
+        "setup rewrote an explicit false");
+
+    // An unreadable marker is off for audit, and opting in refuses to overwrite
+    // content it cannot parse.
     let bad_marker = fs::make_temp_dir("northstar-rust-quality-setup-bad-marker");
     let bad_contracts = path::join(bad_marker, "docs/knowledge/contracts");
     fs::create_dir(bad_contracts);
     fs::write_file(path::join(bad_marker, "Cargo.toml"),
         "[package]\nname = \"bad-marker\"\nversion = \"0.1.0\"\nrust-version = \"1.95\"\n");
     fs::write_file(activation_marker_path(bad_contracts), "not json\n");
-    expect_error("malformed activation marker",
-        || apply_setup(northstar_skill_root, bad_marker, ".", false),
+    apply_setup(northstar_skill_root, bad_marker, ".", false);
+    require(fs::is_file(path::join(bad_contracts, "rust-quality-profile.json")),
+        "an unreadable marker stopped explicit-audit setup");
+    require(fs::read_file(activation_marker_path(bad_contracts)) == "not json\n",
+        "setup rewrote an unreadable marker");
+    expect_error("unreadable marker opt-in",
+        || apply_setup(northstar_skill_root, bad_marker, ".", true),
         "activation marker is not valid JSON");
-    fs::write_file(activation_marker_path(bad_contracts), "{\"everyday_authoring\": \"yes\"}\n");
-    expect_error("non-boolean opt-in",
-        || apply_setup(northstar_skill_root, bad_marker, ".", false),
-        "must be a boolean");
 
     let absolute_root = fs::make_temp_dir("northstar-rust-quality-setup-absolute-root");
     fs::create_dir(path::join(absolute_root, "crates/app"));
@@ -436,7 +488,7 @@ let task_args = strip_relay_boundary(args);
 if task_args.len() == 1 && task_args[0] == "self-test" {
     self_test(northstar_skill_root);
     test_consumer_decoy_ignored(northstar_skill_root);
-    log("Northstar Rust quality setup self-test: OK (opt-in off by default, opt-in install, preserve, idempotency, absolute-under-target, decoy ignored, 6 negative paths)");
+    log("Northstar Rust quality setup self-test: OK (opt-in off by default, opt-in install, preserve, idempotency, non-boolean and false off, unreadable marker off for audit and refused on opt-in, absolute-under-target, decoy ignored)");
 } else if task_args.len() >= 2 && task_args.len() <= 4 && task_args[0] == "apply" {
     let positional = [];
     let opt_in = false;

@@ -321,8 +321,8 @@ ADAPTED_EXPECTED = {
     'references/modes/rust-quality-authoring.md': 'sha256:6d22efb5a3a3449a04e68a8ab6f7dc58c82e740ad7955283a245f88e53548aba',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:eb19b8ba64b49331376aa3cb3ae7857447c096a0300a1626fd1efb28c2b624be',
-    'scripts/rust-quality-setup.rhai': 'sha256:1efb1c3f7d00cb1dce76b18ede7ac5a3ec7fdcbbd99bb9ead2acbedbe22b502b',
+    'scripts/check-rust-quality.rhai': 'sha256:57cfd7e6e301a4b6c15b1b5ab0222869c5e3b980d583af2cc1198c53334af93b',
+    'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
