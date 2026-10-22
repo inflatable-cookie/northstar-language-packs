@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Release `@northstar/rust-quality` `0.2.2`. `0.2.1` is pinned by Northstar, so
+  this repair ships as a new immutable identity. The installed proof takes the
+  pinned Northstar source from `NORTHSTAR_SOURCE` or a third argument and fails
+  plainly without it, so a Queue worker can run it from its own checkout. Setup
+  skips the single Effigy relay boundary before its usage check and tests that
+  skip.
 - Release `@northstar/rust-quality` `0.2.1`. Tool bootstrap and the installed
   proof build `tools/rust-quality` with `--target-dir` outside the package.
   Cargo no longer writes `target/` into the immutable installed tree. Installs

@@ -501,6 +501,8 @@ fn validate_setup_surface(package_root) {
         "Rust setup can launch a subprocess");
     require(setup.contains("catalog_root"),
         "Rust setup does not resolve assets from catalog_root");
+    require(setup.contains("fn strip_relay_boundary(") && setup.contains("\"--\""),
+        "Rust setup does not skip the single Effigy relay boundary before its usage check");
 }
 
 fn validate_audit_surface(package_root) {
@@ -599,7 +601,7 @@ fn require_command(commands, name) {
 fn validate_manifest(manifest) {
     require(manifest["schema_version"] == "1.0.0", "unsupported package schema version");
     require(manifest["package_id"] == "@northstar/rust-quality", "package id drifted");
-    require(manifest["version"] == "0.2.1", "package version drifted");
+    require(manifest["version"] == "0.2.2", "package version drifted");
     require(manifest["kind"] == "language-quality", "package kind drifted");
     require(manifest["compatible_core_range"] == ">=0.2.0 <1.0.0", "core range drifted");
     require(manifest["supported_languages"] == ["rust"], "supported languages drifted");
