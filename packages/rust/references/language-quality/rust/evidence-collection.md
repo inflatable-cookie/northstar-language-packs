@@ -43,6 +43,15 @@ for enforcement or evidence, remains evaluation-only, or requires manual
 classification. The mapping is evidence-only: it never creates a finding or
 repair plan. An agent verdict remains mandatory before either exists.
 
+Unstructured output is classified by the diagnostic each line begins. A
+`generic` line is a warning only when its first token is `warning:` or a coded
+`warning[...]`, or when `warning:` follows a rustc short-format
+`path:line:column:` position. Everything else stays a `note`, so a passing
+nextest or libtest test name containing `warning` is not warning evidence while
+compiler, cargo, runner and stderr warnings remain, and no line is dropped.
+Exit status keeps precedence: warning on a zero exit, `failed` on any nonzero
+exit, `unavailable` at `startup` when the process cannot start.
+
 ## Audit collection
 
 ```text
