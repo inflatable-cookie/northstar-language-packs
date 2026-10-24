@@ -27,7 +27,7 @@ pub struct EvidencePlan {
     pub requests: Vec<EvidenceRequest>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct EvidenceRequest {
     pub evidence_id: String,
     #[serde(default)]
@@ -40,7 +40,7 @@ pub struct EvidenceRequest {
     pub execution: Execution,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Execution {
     Command {
@@ -210,13 +210,15 @@ fn generic_format() -> String {
 /// contradictory coverage, mismatched bound evidence, or records that cannot be
 /// persisted. Validation, coverage and identity conflicts fail before any new
 /// record is written. Command failures become evidence records.
+// The owned plan keeps the audit caller's signature; this operation only reads it.
+#[allow(clippy::needless_pass_by_value)]
 pub fn collect(
     repository_root: &Path,
     record_root: &Path,
     plan: EvidencePlan,
     audit_units: Option<&BTreeSet<String>>,
 ) -> Result<CollectionReceipt, String> {
-    collect_bound(repository_root, record_root, plan, audit_units, None)
+    collect_bound(repository_root, record_root, &plan, audit_units, None)
 }
 
 /// Runs [`collect`] with an optional committed-range evidence binding.
@@ -228,95 +230,28 @@ pub fn collect(
 pub fn collect_bound(
     repository_root: &Path,
     record_root: &Path,
-    plan: EvidencePlan,
+    plan: &EvidencePlan,
     audit_units: Option<&BTreeSet<String>>,
     binding: Option<&EvidenceBinding<'_>>,
 ) -> Result<CollectionReceipt, String> {
     let mapping = mapping()?;
-    validate_plan(&plan, audit_units)?;
+    validate_plan(plan, audit_units)?;
     fs::create_dir_all(record_root).map_err(|error| format!("evidence.record_create: {error}"))?;
 
     let existing = index_existing_coverage(record_root)?;
-    if let Some(binding) = binding {
-        for record in existing.values() {
-            if record.source_identity.as_deref() != Some(binding.source_identity) {
-                return Err(format!(
-                    "evidence.source_mismatch: {} was not captured for {}",
-                    record.evidence_id, binding.source_identity
-                ));
-            }
-        }
-    }
-    let scope = resolve_collection_scope(&plan, audit_units)?;
-    let mut planned = BTreeSet::new();
-    let mut pending: Vec<(EvidenceRequest, String, PendingAction)> = Vec::new();
-    for request in plan.requests {
-        let key = coverage_key(request.unit_id.clone(), &request.evidence_class);
-        if !planned.insert(key.clone()) {
-            return Err(format!(
-                "evidence.coverage_duplicate: {}/{}",
-                request.unit_id.as_deref().unwrap_or("-"),
-                request.evidence_class
-            ));
-        }
-        let digest = request_digest(&request)?;
-        let path = record_root.join(format!("{}.json", request.evidence_id));
-        if let Some(record) = existing.get(&key) {
-            if let Some(binding) = binding
-                && binding.reuse
-            {
-                if record.request_sha256.as_deref() != Some(digest.as_str()) {
-                    return Err(format!(
-                        "evidence.request_mismatch: {} does not match the captured request",
-                        record.evidence_id
-                    ));
-                }
-                pending.push((request, digest, PendingAction::Reuse(record.clone())));
-                continue;
-            }
-            if record.evidence_id != request.evidence_id {
-                return Err(format!(
-                    "evidence.coverage_exists: {}/{} via {}",
-                    request.unit_id.as_deref().unwrap_or("-"),
-                    request.evidence_class,
-                    record.evidence_id
-                ));
-            }
-        }
-        if path.exists() {
-            return Err(format!("evidence.record_exists: {}", request.evidence_id));
-        }
-        pending.push((request, digest, PendingAction::Run(path)));
-    }
+    verify_binding(&existing, binding)?;
+    let scope = resolve_collection_scope(plan, audit_units)?;
+    let (pending, mut planned) = plan_requests(plan, record_root, &existing, binding)?;
+    let unrun_plans = plan_unrun(plan, &scope, record_root, &existing, &mut planned)?;
 
-    let mut unrun_plans = Vec::new();
-    for class in &plan.applicable_classes {
-        for unit_id in &scope {
-            let key = coverage_key(unit_id.clone(), class);
-            if planned.contains(&key) || existing.contains_key(&key) {
-                continue;
-            }
-            let suffix = unit_id
-                .as_ref()
-                .map_or_else(String::new, |unit| format!("-{unit}"));
-            let id = format!("unrun-{class}{suffix}");
-            let path = record_root.join(format!("{id}.json"));
-            if path.exists() {
-                return Err(format!("evidence.record_exists: {id}"));
-            }
-            unrun_plans.push((id, unit_id.clone(), class.clone(), path));
-            planned.insert(key);
-        }
-    }
-
+    let source_identity = binding.map(|value| value.source_identity);
     let mut records = Vec::new();
     let mut reused = Vec::new();
-    let source_identity = binding.map(|value| value.source_identity);
     for (request, digest, action) in pending {
         match action {
             PendingAction::Reuse(record) => {
                 reused.push(record.evidence_id.clone());
-                records.push(record);
+                records.push(*record);
             }
             PendingAction::Run(path) => {
                 let record = run_request(
@@ -350,9 +285,112 @@ pub fn collect_bound(
     })
 }
 
+fn verify_binding(
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    binding: Option<&EvidenceBinding<'_>>,
+) -> Result<(), String> {
+    let Some(binding) = binding else {
+        return Ok(());
+    };
+    for record in existing.values() {
+        if record.source_identity.as_deref() != Some(binding.source_identity) {
+            return Err(format!(
+                "evidence.source_mismatch: {} was not captured for {}",
+                record.evidence_id, binding.source_identity
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn plan_requests(
+    plan: &EvidencePlan,
+    record_root: &Path,
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    binding: Option<&EvidenceBinding<'_>>,
+) -> Result<(Vec<Pending>, BTreeSet<CoverageKey>), String> {
+    let mut planned = BTreeSet::new();
+    let mut pending = Vec::new();
+    for request in &plan.requests {
+        let key = coverage_key(request.unit_id.clone(), &request.evidence_class);
+        if !planned.insert(key.clone()) {
+            return Err(format!(
+                "evidence.coverage_duplicate: {}/{}",
+                request.unit_id.as_deref().unwrap_or("-"),
+                request.evidence_class
+            ));
+        }
+        let digest = request_digest(request)?;
+        let path = record_root.join(format!("{}.json", request.evidence_id));
+        if let Some(record) = existing.get(&key) {
+            if let Some(binding) = binding
+                && binding.reuse
+            {
+                if record.request_sha256.as_deref() != Some(digest.as_str()) {
+                    return Err(format!(
+                        "evidence.request_mismatch: {} does not match the captured request",
+                        record.evidence_id
+                    ));
+                }
+                pending.push((
+                    request.clone(),
+                    digest,
+                    PendingAction::Reuse(Box::new(record.clone())),
+                ));
+                continue;
+            }
+            if record.evidence_id != request.evidence_id {
+                return Err(format!(
+                    "evidence.coverage_exists: {}/{} via {}",
+                    request.unit_id.as_deref().unwrap_or("-"),
+                    request.evidence_class,
+                    record.evidence_id
+                ));
+            }
+        }
+        if path.exists() {
+            return Err(format!("evidence.record_exists: {}", request.evidence_id));
+        }
+        pending.push((request.clone(), digest, PendingAction::Run(path)));
+    }
+    Ok((pending, planned))
+}
+
+fn plan_unrun(
+    plan: &EvidencePlan,
+    scope: &[Option<String>],
+    record_root: &Path,
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    planned: &mut BTreeSet<CoverageKey>,
+  ) -> Result<Vec<UnrunPlan>, String> {
+    let mut unrun_plans = Vec::new();
+    for class in &plan.applicable_classes {
+        for unit_id in scope {
+            let key = coverage_key(unit_id.clone(), class);
+            if planned.contains(&key) || existing.contains_key(&key) {
+                continue;
+            }
+            let suffix = unit_id
+                .as_ref()
+                .map_or_else(String::new, |unit| format!("-{unit}"));
+            let id = format!("unrun-{class}{suffix}");
+            let path = record_root.join(format!("{id}.json"));
+            if path.exists() {
+                return Err(format!("evidence.record_exists: {id}"));
+            }
+            unrun_plans.push((id, unit_id.clone(), class.clone(), path));
+            planned.insert(key);
+        }
+    }
+    Ok(unrun_plans)
+}
+
+type Pending = (EvidenceRequest, String, PendingAction);
+type UnrunPlan = (String, Option<String>, String, PathBuf);
+
 enum PendingAction {
     Run(PathBuf),
-    Reuse(EvidenceRecord),
+    Reuse(Box<EvidenceRecord>),
 }
 
 type CoverageKey = (Option<String>, String);
@@ -494,7 +532,7 @@ pub fn closeout(
 pub fn closeout_committed(
     repository: &Path,
     applicable_rules: Vec<String>,
-    plan: EvidencePlan,
+    plan: &EvidencePlan,
     artifact_root: &Path,
     base: &str,
     head: &str,

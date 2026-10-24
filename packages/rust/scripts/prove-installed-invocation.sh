@@ -325,11 +325,11 @@ ADAPTED_EXPECTED = {
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
     'scripts/check-rust-quality.rhai': 'sha256:8cec2154a31ef425b9617f0f1e9532c313eb0630dcea6b12322705b8bf1c5529',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
-    'tools/rust-quality/src/evidence.rs': 'sha256:4bc64ff0ff11bae36a5383d96850414b4c876136bb54d3108f98dbd18d164ac1',
-    'tools/rust-quality/src/lib.rs': 'sha256:47c25310a78065bd25128d4020d366130161b23ef6f5d3197f27ce0496214547',
-    'tools/rust-quality/src/main.rs': 'sha256:e9b0832d4728d45c3360aef1e5b9c4c03b20211f250e11c4766efd99c7a253f3',
+    'tools/rust-quality/src/evidence.rs': 'sha256:d5dcf820ba02d960a1b9235df246f27c9046da9e288c153cebd7188c1ea30a7a',
+    'tools/rust-quality/src/lib.rs': 'sha256:c6ffcc73e5c173685e3a112a7a3f23e39aa6f0d183ebb995b4d68691c06b613f',
+    'tools/rust-quality/src/main.rs': 'sha256:ea9c2a548f057e5e7e4cdfb0e072aaa1c77a590ffc01bcdc9ce7718bf8a559b9',
     'tools/rust-quality/src/plan.rs': 'sha256:153e2185b330c68deb0cc7ca4e5e3fda7644ba07693d14f97f14a20fb86743b9',
-    'tools/rust-quality/tests/cli.rs': 'sha256:f2323492defe0dc8e0d54d6ce7f2b81d9c045db12b2b0455b67589cb41879ec1',
+    'tools/rust-quality/tests/cli.rs': 'sha256:2a54c1221bd5acf3f86afa7b2f5cefd90e5d1be90f4c6ab36b9e2d34b7784477',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -738,8 +738,8 @@ then
 fi
 require_file_contains "$receipt_path" "\"current\": true" "probe receipt current"
 require_file_contains "$receipt_path" "\"schema_version\": \"northstar.rust-quality.install.v1\"" "probe receipt schema"
-require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"02136235a756e787a8d71809a01b4e565c7ebfb21321882c635411162558bf8a\"" "probe embedded payload hash"
-require_file_contains "$receipt_path" "\"source_payload_sha256\": \"02136235a756e787a8d71809a01b4e565c7ebfb21321882c635411162558bf8a\"" "probe source payload hash"
+require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"5dcbbdf1b5d9f60fc934d637a683b62ab43eea7649dbbb945c6650b33b7b95cd\"" "probe embedded payload hash"
+require_file_contains "$receipt_path" "\"source_payload_sha256\": \"5dcbbdf1b5d9f60fc934d637a683b62ab43eea7649dbbb945c6650b33b7b95cd\"" "probe source payload hash"
 
 # Tamper negatives: mutating source must cause verify-install to fail closed
 tampered="$work/tampered-tool"

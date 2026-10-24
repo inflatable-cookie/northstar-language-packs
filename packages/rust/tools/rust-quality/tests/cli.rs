@@ -1679,10 +1679,8 @@ fn worktree_closeout_still_seals_one_snapshot_only() {
     )
     .expect("parse worktree record");
     assert!(record.get("source_identity").is_none());
-    assert_eq!(
-        record["request_sha256"].as_str().expect("request digest").len(),
-        64
-    );
+    let request_sha256 = record["request_sha256"].as_str().expect("request digest");
+    assert_eq!(request_sha256.len(), 64);
     assert_lifecycle_error(&fixture.closeout(&plan), "evidence.closeout_exists");
 }
 

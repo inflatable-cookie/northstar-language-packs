@@ -254,7 +254,7 @@ fn closeout(mut arguments: impl Iterator<Item = String>) -> Result<(), String> {
         (Some(base), Some(head)) => closeout_committed(
             &repository,
             input.applicable_rules,
-            input.evidence_plan,
+            &input.evidence_plan,
             &artifact_root,
             &base,
             &head,

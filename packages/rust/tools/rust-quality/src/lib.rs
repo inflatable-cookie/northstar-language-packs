@@ -84,10 +84,7 @@ impl CommittedRange {
     /// Stable evidence binding for this exact range.
     #[must_use]
     pub fn source_identity(&self) -> String {
-        format!(
-            "committed:{}:{}",
-            self.base_commit, self.head_commit
-        )
+        format!("committed:{}:{}", self.base_commit, self.head_commit)
     }
 
     /// Paths of the committed tranche, excluding preserved dirty worktree state.
