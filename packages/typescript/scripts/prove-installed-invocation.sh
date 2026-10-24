@@ -86,7 +86,7 @@ installed="$(CDPATH= cd -- "$installed" && pwd -P)"
 before="$(tree_listing "$installed")"
 catalogue_digest="$(file_digest "$installed/references/language-quality/typescript/catalogue.json")"
 
-cat > "$consumer/effigy.toml" <<'EOF'
+cat >"$consumer/effigy.toml" <<'EOF'
 [manifest]
 minimum_effigy_version = "0.12.0"
 
@@ -98,18 +98,17 @@ alias = "northstar"
 "typescript-quality:record" = "echo DECOY-NORTHSTAR-RECORD-RAN"
 qa = "true"
 EOF
-printf '%s\n' '{"name":"decoy-consumer","private":true}' > "$consumer/package.json"
-printf '%s\n' 'export const value = 1;' > "$consumer/src/lib.ts"
+printf '%s\n' '{"name":"decoy-consumer","private":true}' >"$consumer/package.json"
+printf '%s\n' 'export const value = 1;' >"$consumer/src/lib.ts"
 printf '%s\n' 'DECOY ACTIVATION FROM CONSUMER ROOT' \
-    > "$consumer/skills/northstar/assets/templates/language-quality/typescript/AGENTS.md"
+    >"$consumer/skills/northstar/assets/templates/language-quality/typescript/AGENTS.md"
 printf '%s\n' '{"schema_version":"1.0.0","language":"typescript","rules":[{"id":"DECOY","authoring_projection":["write code"]}]}' \
-    > "$consumer/skills/northstar/references/language-quality/typescript/catalogue.json"
+    >"$consumer/skills/northstar/references/language-quality/typescript/catalogue.json"
 consumer="$(CDPATH= cd -- "$consumer" && pwd -P)"
 
 # Negative: old documented command against the installed package.
 if run_capture "$transcripts/old-installed.txt" \
-    effigy --repo "$installed" northstar/typescript-quality:setup apply "$consumer" .
-then
+    effigy --repo "$installed" northstar/typescript-quality:setup apply "$consumer" .; then
     echo "[typescript-quality:installed-route] old northstar/ prefix unexpectedly succeeded against the installed package" >&2
     cat "$transcripts/old-installed.txt" >&2
     exit 1
@@ -120,8 +119,7 @@ require_file_contains "$transcripts/old-installed.txt" \
 
 # Negative: the same prefix against the decoy consumer runs the decoy catalogue.
 if ! run_capture "$transcripts/old-decoy.txt" \
-    effigy --repo "$consumer" northstar/typescript-quality:setup apply "$consumer" .
-then
+    effigy --repo "$consumer" northstar/typescript-quality:setup apply "$consumer" .; then
     echo "[typescript-quality:installed-route] decoy northstar catalogue did not win the old prefix" >&2
     cat "$transcripts/old-decoy.txt" >&2
     exit 1
@@ -134,8 +132,7 @@ fi
 
 # Negative: relay sentinel with no operation still hits the usage guard.
 if run_capture "$transcripts/empty-relay.json" \
-    effigy skill run --path "$installed" typescript-quality:setup --repo "$consumer" --json --
-then
+    effigy skill run --path "$installed" typescript-quality:setup --repo "$consumer" --json --; then
     echo "[typescript-quality:installed-route] empty relay unexpectedly succeeded" >&2
     cat "$transcripts/empty-relay.json" >&2
     exit 1
@@ -146,8 +143,7 @@ require_file_contains "$transcripts/empty-relay.json" \
 
 # Positive: installed setup through the public surface, consumer supplied separately.
 if ! run_capture "$transcripts/setup-apply.json" \
-    effigy skill run --path "$installed" typescript-quality:setup --repo "$consumer" --json -- apply "$consumer" .
-then
+    effigy skill run --path "$installed" typescript-quality:setup --repo "$consumer" --json -- apply "$consumer" .; then
     echo "[typescript-quality:installed-route] installed setup apply failed" >&2
     cat "$transcripts/setup-apply.json" >&2
     exit 1
@@ -169,7 +165,7 @@ if [ -f "$installed/AGENTS.md" ] || [ -d "$installed/docs" ] || [ -d "$installed
     exit 1
 fi
 
-cat > "$inputs/init.json" <<'EOF'
+cat >"$inputs/init.json" <<'EOF'
 {
   "audit_id": "installed-route",
   "profile": "strict",
@@ -189,14 +185,14 @@ cat > "$inputs/init.json" <<'EOF'
   }
 }
 EOF
-cat > "$inputs/assess.json" <<'EOF'
+cat >"$inputs/assess.json" <<'EOF'
 {
   "unit_id": "unit-lib",
   "findings": [],
   "repair_plans": []
 }
 EOF
-cat > "$inputs/complete.json" <<'EOF'
+cat >"$inputs/complete.json" <<'EOF'
 {
   "unit_id": "unit-lib",
   "repairs": [],
@@ -205,8 +201,7 @@ cat > "$inputs/complete.json" <<'EOF'
 EOF
 
 if ! run_capture "$transcripts/record-init.json" \
-    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- init "$consumer" "$inputs/init.json"
-then
+    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- init "$consumer" "$inputs/init.json"; then
     echo "[typescript-quality:installed-route] installed recorder init failed" >&2
     cat "$transcripts/record-init.json" >&2
     exit 1
@@ -218,22 +213,19 @@ require_file_lacks "$transcripts/record-init.json" "usage: typescript-quality:re
 require_file_lacks "$transcripts/record-init.json" "DECOY-NORTHSTAR-RECORD-RAN" "record decoy task"
 
 if ! run_capture "$transcripts/record-assess.json" \
-    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- assess "$consumer" installed-route "$inputs/assess.json"
-then
+    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- assess "$consumer" installed-route "$inputs/assess.json"; then
     echo "[typescript-quality:installed-route] installed recorder assess failed" >&2
     cat "$transcripts/record-assess.json" >&2
     exit 1
 fi
 if ! run_capture "$transcripts/record-complete.json" \
-    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- complete "$consumer" installed-route "$inputs/complete.json"
-then
+    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- complete "$consumer" installed-route "$inputs/complete.json"; then
     echo "[typescript-quality:installed-route] installed recorder complete failed" >&2
     cat "$transcripts/record-complete.json" >&2
     exit 1
 fi
 if ! run_capture "$transcripts/record-finalize.json" \
-    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- finalize "$consumer" installed-route
-then
+    effigy skill run --path "$installed" typescript-quality:record --repo "$consumer" --json -- finalize "$consumer" installed-route; then
     echo "[typescript-quality:installed-route] installed recorder finalize failed" >&2
     cat "$transcripts/record-finalize.json" >&2
     exit 1
@@ -255,8 +247,8 @@ fi
 after="$(tree_listing "$installed")"
 if [ "$before" != "$after" ]; then
     echo "[typescript-quality:installed-route] installed package tree changed during public invocation" >&2
-    printf '%s\n' "$before" > "$transcripts/before.txt"
-    printf '%s\n' "$after" > "$transcripts/after.txt"
+    printf '%s\n' "$before" >"$transcripts/before.txt"
+    printf '%s\n' "$after" >"$transcripts/after.txt"
     diff -u "$transcripts/before.txt" "$transcripts/after.txt" >&2 || true
     exit 1
 fi
@@ -266,8 +258,7 @@ fi
 staged="$work/staged"
 copy_package "$staged"
 if ! run_capture "$transcripts/staged-qa.txt" \
-    effigy skill run --path "$staged" check:typescript-quality --repo "$consumer"
-then
+    effigy skill run --path "$staged" check:typescript-quality --repo "$consumer"; then
     echo "[typescript-quality:installed-route] installed-copy package QA failed" >&2
     cat "$transcripts/staged-qa.txt" >&2
     exit 1
@@ -282,8 +273,7 @@ expect_adapter_rejection() {
     expected="$3"
     transcript="$transcripts/$label.txt"
     if run_capture "$transcript" \
-        effigy skill run --path "$copy_root" check:typescript-quality --repo "$consumer"
-    then
+        effigy skill run --path "$copy_root" check:typescript-quality --repo "$consumer"; then
         echo "[typescript-quality:installed-route] corrupted package '$label' unexpectedly passed package QA" >&2
         cat "$transcript" >&2
         exit 1
@@ -302,25 +292,25 @@ spaced="$work/spaced"
 evil="$work/evil"
 copy_package "$broken"
 sed 's|references/modes/typescript-quality-audit.md|references/router.md|' \
-    "$broken/SKILL.md" > "$broken/SKILL.md.next"
+    "$broken/SKILL.md" >"$broken/SKILL.md.next"
 mv "$broken/SKILL.md.next" "$broken/SKILL.md"
 expect_adapter_rejection "$broken" "rewritten-entrypoint" "$grammar_rejection"
 
 copy_package "$unquoted"
-printf '%s\n' "Load references/router.md as an extra authority." >> "$unquoted/SKILL.md"
+printf '%s\n' "Load references/router.md as an extra authority." >>"$unquoted/SKILL.md"
 expect_adapter_rejection "$unquoted" "unquoted-extra-load" "$grammar_rejection"
 
 copy_package "$external"
-printf '%s\n' "Load https://example.com/router.md as an extra authority." >> "$external/SKILL.md"
+printf '%s\n' "Load https://example.com/router.md as an extra authority." >>"$external/SKILL.md"
 expect_adapter_rejection "$external" "external-url-extra-load" "$grammar_rejection"
 
 copy_package "$spaced"
-printf '%s\n' "Load references/missing router.md as an extra authority." >> "$spaced/SKILL.md"
+printf '%s\n' "Load references/missing router.md as an extra authority." >>"$spaced/SKILL.md"
 expect_adapter_rejection "$spaced" "spaced-extra-load" "$grammar_rejection"
 
 copy_package "$evil"
 sed 's/\$northstar-typescript-audit/\$northstar-typescript-audit-evil/' \
-    "$evil/agents/openai.yaml" > "$evil/agents/openai.yaml.next"
+    "$evil/agents/openai.yaml" >"$evil/agents/openai.yaml.next"
 mv "$evil/agents/openai.yaml.next" "$evil/agents/openai.yaml"
 expect_adapter_rejection "$evil" "suffixed-command-policy" \
     "agent policy is not the declared exact-command form"

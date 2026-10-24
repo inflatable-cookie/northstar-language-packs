@@ -212,7 +212,7 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:be2f41b4cab44c7b4acc524a6d49e8e6a01bd95c20aeca0cead129b5842fa4e5'
+expected_manifest = 'sha256:bd45c822c16cad96dec399286674ce2a142349ae258c27759f5c7c525b6ba162'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
@@ -224,8 +224,7 @@ no_source_root="$work/no-source/a/b/c"
 mkdir -p "$no_source_root"
 cp "$root/northstar-package.json" "$root/effigy.toml" "$no_source_root/"
 if run_capture "$transcripts/missing-source.txt" \
-    env NORTHSTAR_SOURCE= "$self_path" "$no_source_root"
-then
+    env NORTHSTAR_SOURCE= "$self_path" "$no_source_root"; then
     echo "[rust-quality:installed-route] missing Northstar source unexpectedly succeeded" >&2
     cat "$transcripts/missing-source.txt" >&2
     exit 1
@@ -238,8 +237,7 @@ empty_northstar="$work/empty-northstar"
 mkdir -p "$empty_northstar"
 (CDPATH= cd -- "$empty_northstar" && git init -q)
 if run_capture "$transcripts/wrong-source.txt" \
-    env NORTHSTAR_SOURCE="$empty_northstar" "$self_path" "$root"
-then
+    env NORTHSTAR_SOURCE="$empty_northstar" "$self_path" "$root"; then
     echo "[rust-quality:installed-route] Northstar source without the pinned commit unexpectedly succeeded" >&2
     cat "$transcripts/wrong-source.txt" >&2
     exit 1
@@ -438,28 +436,28 @@ producer_bin="$ns_target/debug/northstar-rust-quality"
 # 4. Cross-Boundary Migration and Pre-Extraction Ledger Compatibility Proof
 compat_repo="$work/compat-consumer"
 mkdir -p "$compat_repo/src" "$compat_repo/tests" "$compat_repo/docs/knowledge/contracts"
-cat > "$compat_repo/Cargo.toml" <<'EOF'
+cat >"$compat_repo/Cargo.toml" <<'EOF'
 [package]
 name = "compat-fixture"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.95"
 EOF
-printf '%s\n' 'pub fn answer() -> u8 { 41 }' > "$compat_repo/src/lib.rs"
-printf '%s\n' '#[test] fn answer_is_stable() {}' > "$compat_repo/tests/answer.rs"
+printf '%s\n' 'pub fn answer() -> u8 { 41 }' >"$compat_repo/src/lib.rs"
+printf '%s\n' '#[test] fn answer_is_stable() {}' >"$compat_repo/tests/answer.rs"
 cp "$installed/assets/templates/language-quality/rust/rust-quality-profile.json" "$compat_repo/docs/knowledge/contracts/"
 cp "$installed/assets/templates/language-quality/rust/rust-quality-deviations.json" "$compat_repo/docs/knowledge/contracts/"
 (CDPATH= cd -- "$compat_repo" && git init -q && git config user.name "Test" && git config user.email "test@example.com" && git add . && git commit -q -m "initial")
 
 # Introduce dirty anchor in worktree
-printf '%s\n' 'pub fn answer() -> u8 { 42 }' > "$compat_repo/src/lib.rs"
+printf '%s\n' 'pub fn answer() -> u8 { 42 }' >"$compat_repo/src/lib.rs"
 
 compat_inputs="$work/compat-inputs"
 mkdir -p "$compat_inputs"
 
 # Producer (Frozen Northstar Engine built from 69e4d5d): inspect, plan, init, assess
 "$producer_bin" inspect --repo "$compat_repo" --scope worktree --output "$compat_inputs/discovery.json"
-cat > "$compat_inputs/plan-in.json" <<'EOF'
+cat >"$compat_inputs/plan-in.json" <<'EOF'
 {"audit_id":"migration-wave","units":[{"unit_id":"core","anchors":["src/lib.rs"],"context":[]}],"excluded_dirty_files":[],"repository_coverage":null}
 EOF
 "$producer_bin" plan --discovery "$compat_inputs/discovery.json" --input "$compat_inputs/plan-in.json" --output "$compat_inputs/plan.json"
@@ -472,7 +470,7 @@ dev_before="$(file_digest "$dev_path")"
 
 "$producer_bin" init --repo "$compat_repo" --discovery "$compat_inputs/discovery.json" --plan "$compat_inputs/plan.json" --rules "$rules_path" --profile "$prof_path" --deviations "$dev_path"
 
-cat > "$compat_inputs/assess-in.json" <<'EOF'
+cat >"$compat_inputs/assess-in.json" <<'EOF'
 {
   "unit_id": "core",
   "verdicts": [
@@ -506,7 +504,7 @@ probe_bin="$probe_target/bin/northstar-rust-quality"
 
 "$probe_bin" validate-ledger --rules "$rules_path" --input "$compat_inputs/assess-in.json"
 
-cat > "$compat_inputs/extend-in.json" <<'EOF'
+cat >"$compat_inputs/extend-in.json" <<'EOF'
 {
   "unit_id": "core",
   "reason": "add focused regression test",
@@ -517,10 +515,10 @@ EOF
 "$probe_bin" extend --repo "$compat_repo" --audit migration-wave --input "$compat_inputs/extend-in.json"
 
 # Apply repair
-printf '%s\n' 'pub fn answer() -> u8 { 43 }' > "$compat_repo/src/lib.rs"
-printf '%s\n' '#[test] fn answer_is_stable() { assert_eq!(43, 43); }' > "$compat_repo/tests/answer.rs"
+printf '%s\n' 'pub fn answer() -> u8 { 43 }' >"$compat_repo/src/lib.rs"
+printf '%s\n' '#[test] fn answer_is_stable() { assert_eq!(43, 43); }' >"$compat_repo/tests/answer.rs"
 
-cat > "$compat_inputs/collect-in.json" <<'EOF'
+cat >"$compat_inputs/collect-in.json" <<'EOF'
 {
   "applicable_classes": ["test"],
   "requests": [{
@@ -542,7 +540,7 @@ cat > "$compat_inputs/collect-in.json" <<'EOF'
 EOF
 "$probe_bin" collect --repo "$compat_repo" --audit migration-wave --input "$compat_inputs/collect-in.json"
 
-cat > "$compat_inputs/complete-in.json" <<'EOF'
+cat >"$compat_inputs/complete-in.json" <<'EOF'
 {
   "unit_id": "core",
   "repairs": [{
@@ -555,7 +553,7 @@ cat > "$compat_inputs/complete-in.json" <<'EOF'
 EOF
 "$probe_bin" complete --repo "$compat_repo" --audit migration-wave --input "$compat_inputs/complete-in.json"
 
-"$probe_bin" finalize --repo "$compat_repo" --audit migration-wave > "$compat_inputs/closeout.json"
+"$probe_bin" finalize --repo "$compat_repo" --audit migration-wave >"$compat_inputs/closeout.json"
 require_file_contains "$compat_inputs/closeout.json" "\"status\": \"clean\"" "compat closeout clean"
 require_file_contains "$compat_inputs/closeout.json" "\"schema_version\": \"northstar.rust-quality.audit-result.v2\"" "compat closeout schema"
 
@@ -571,7 +569,7 @@ if [ "$dev_before" != "$dev_after" ]; then
 fi
 
 # 5. Decoy Consumer and Installed Setup Verification
-cat > "$consumer/effigy.toml" <<'EOF'
+cat >"$consumer/effigy.toml" <<'EOF'
 [manifest]
 minimum_effigy_version = "0.12.0"
 
@@ -583,7 +581,7 @@ alias = "northstar"
 qa = "true"
 EOF
 
-cat > "$consumer/Cargo.toml" <<'EOF'
+cat >"$consumer/Cargo.toml" <<'EOF'
 [package]
 name = "decoy-consumer"
 version = "0.1.0"
@@ -591,16 +589,16 @@ edition = "2021"
 rust-version = "1.95"
 EOF
 
-cat > "$consumer/src/lib.rs" <<'EOF'
+cat >"$consumer/src/lib.rs" <<'EOF'
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 EOF
 
 printf '%s\n' 'DECOY ACTIVATION FROM CONSUMER ROOT' \
-    > "$consumer/skills/northstar/assets/templates/language-quality/rust/AGENTS.md"
+    >"$consumer/skills/northstar/assets/templates/language-quality/rust/AGENTS.md"
 printf '%s\n' '{"schema_version":"1.0.0","language":"rust","rules":[{"id":"DECOY"}]}' \
-    > "$consumer/skills/northstar/references/language-quality/rust/catalogue.json"
+    >"$consumer/skills/northstar/references/language-quality/rust/catalogue.json"
 consumer="$(CDPATH= cd -- "$consumer" && pwd -P)"
 
 # Initialize git repository in consumer
@@ -608,8 +606,7 @@ consumer="$(CDPATH= cd -- "$consumer" && pwd -P)"
 
 # Negative: old documented command against the installed package.
 if run_capture "$transcripts/old-installed.txt" \
-    effigy --repo "$installed" northstar/rust-quality:setup apply "$consumer" .
-then
+    effigy --repo "$installed" northstar/rust-quality:setup apply "$consumer" .; then
     echo "[rust-quality:installed-route] old northstar/ prefix unexpectedly succeeded against the installed package" >&2
     cat "$transcripts/old-installed.txt" >&2
     exit 1
@@ -620,8 +617,7 @@ require_file_contains "$transcripts/old-installed.txt" \
 
 # Negative: the same prefix against the decoy consumer runs the decoy catalogue.
 if ! run_capture "$transcripts/old-decoy.txt" \
-    effigy --repo "$consumer" northstar/rust-quality:setup apply "$consumer" .
-then
+    effigy --repo "$consumer" northstar/rust-quality:setup apply "$consumer" .; then
     echo "[rust-quality:installed-route] decoy northstar catalogue did not win the old prefix" >&2
     cat "$transcripts/old-decoy.txt" >&2
     exit 1
@@ -634,8 +630,7 @@ fi
 
 # Negative: relay sentinel with no operation still hits the usage guard.
 if run_capture "$transcripts/empty-relay.json" \
-    effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json --
-then
+    effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json --; then
     echo "[rust-quality:installed-route] empty relay unexpectedly succeeded" >&2
     cat "$transcripts/empty-relay.json" >&2
     exit 1
@@ -648,8 +643,7 @@ require_file_contains "$transcripts/empty-relay.json" \
 # Everyday authoring is opt-in, so a plain apply writes the repository contracts
 # and neither the activation block nor an opt-in marker.
 if ! run_capture "$transcripts/setup-apply.json" \
-    effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json -- apply "$consumer" .
-then
+    effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json -- apply "$consumer" .; then
     echo "[rust-quality:installed-route] installed setup apply failed" >&2
     cat "$transcripts/setup-apply.json" >&2
     exit 1
@@ -684,8 +678,7 @@ fi
 # The documented opt-in step: one explicit per-repository setting.
 if ! run_capture "$transcripts/setup-opt-in.json" \
     effigy skill run --path "$installed" rust-quality:setup --repo "$consumer" --json -- \
-    apply "$consumer" . --everyday-authoring
-then
+    apply "$consumer" . --everyday-authoring; then
     echo "[rust-quality:installed-route] installed setup opt-in failed" >&2
     cat "$transcripts/setup-opt-in.json" >&2
     exit 1
@@ -712,8 +705,7 @@ fi
 
 # 6. Cargo Engine Suite and Tamper Negatives
 if ! run_capture "$transcripts/cargo-test.txt" \
-    cargo test --manifest-path "$installed/tools/rust-quality/Cargo.toml" --target-dir "$work/engine-test-build"
-then
+    cargo test --manifest-path "$installed/tools/rust-quality/Cargo.toml" --target-dir "$work/engine-test-build"; then
     echo "[rust-quality:installed-route] cargo test failed" >&2
     cat "$transcripts/cargo-test.txt" >&2
     exit 1
@@ -730,8 +722,7 @@ require_file_contains "$transcripts/cargo-test.txt" "2 passed" "detectors test c
 receipt_path="$work/cache/receipt.json"
 mkdir -p "$work/cache"
 if ! run_capture "$transcripts/verify-install.txt" \
-    "$probe_bin" verify-install --source-root "$installed/tools/rust-quality" --receipt "$receipt_path"
-then
+    "$probe_bin" verify-install --source-root "$installed/tools/rust-quality" --receipt "$receipt_path"; then
     echo "[rust-quality:installed-route] verify-install failed" >&2
     cat "$transcripts/verify-install.txt" >&2
     exit 1
@@ -745,10 +736,9 @@ require_file_contains "$receipt_path" "\"source_payload_sha256\": \"9e884174af73
 tampered="$work/tampered-tool"
 mkdir -p "$tampered/assets" "$tampered/src"
 cp -R "$installed/tools/rust-quality/"* "$tampered/"
-printf '\n// tampered\n' >> "$tampered/src/lib.rs"
+printf '\n// tampered\n' >>"$tampered/src/lib.rs"
 if run_capture "$transcripts/tamper-lib.txt" \
-    "$probe_bin" verify-install --source-root "$tampered" --receipt "$work/cache/tamper-lib-receipt.json"
-then
+    "$probe_bin" verify-install --source-root "$tampered" --receipt "$work/cache/tamper-lib-receipt.json"; then
     echo "[rust-quality:installed-route] tampered lib.rs unexpectedly passed verify-install" >&2
     cat "$transcripts/tamper-lib.txt" >&2
     exit 1
@@ -756,10 +746,9 @@ fi
 require_file_contains "$transcripts/tamper-lib.txt" "install.payload_mismatch" "tampered lib.rs rejection"
 
 cp "$installed/tools/rust-quality/src/lib.rs" "$tampered/src/lib.rs"
-printf '\n# tampered\n' >> "$tampered/Cargo.toml"
+printf '\n# tampered\n' >>"$tampered/Cargo.toml"
 if run_capture "$transcripts/tamper-cargo.txt" \
-    "$probe_bin" verify-install --source-root "$tampered" --receipt "$work/cache/tamper-cargo-receipt.json"
-then
+    "$probe_bin" verify-install --source-root "$tampered" --receipt "$work/cache/tamper-cargo-receipt.json"; then
     echo "[rust-quality:installed-route] tampered Cargo.toml unexpectedly passed verify-install" >&2
     cat "$transcripts/tamper-cargo.txt" >&2
     exit 1
@@ -767,10 +756,9 @@ fi
 require_file_contains "$transcripts/tamper-cargo.txt" "install.payload_mismatch" "tampered Cargo.toml rejection"
 
 cp "$installed/tools/rust-quality/Cargo.toml" "$tampered/Cargo.toml"
-printf ' ' >> "$tampered/assets/diagnostic-mapping.json"
+printf ' ' >>"$tampered/assets/diagnostic-mapping.json"
 if run_capture "$transcripts/tamper-mapping.txt" \
-    "$probe_bin" verify-install --source-root "$tampered" --receipt "$work/cache/tamper-mapping-receipt.json"
-then
+    "$probe_bin" verify-install --source-root "$tampered" --receipt "$work/cache/tamper-mapping-receipt.json"; then
     echo "[rust-quality:installed-route] tampered diagnostic-mapping unexpectedly passed verify-install" >&2
     cat "$transcripts/tamper-mapping.txt" >&2
     exit 1
@@ -832,8 +820,7 @@ if [ ! -x "$tool_output" ]; then
     exit 1
 fi
 if ! run_capture "$transcripts/tool-built.txt" \
-    "$tool_output" verify-install --source-root "$installed/tools/rust-quality" --receipt "$work/cache/tool-built-receipt.json"
-then
+    "$tool_output" verify-install --source-root "$installed/tools/rust-quality" --receipt "$work/cache/tool-built-receipt.json"; then
     echo "[rust-quality:installed-route] declared tool binary failed verify-install" >&2
     cat "$transcripts/tool-built.txt" >&2
     exit 1
@@ -850,11 +837,10 @@ if [ -e "$installed/tools/rust-quality/target" ]; then
 fi
 
 # 7. Lifecycle execution proof: inspect running against consumer Git repo
-printf '\npub fn multiply(a: i32, b: i32) -> i32 { a * b }\n' >> "$consumer/src/lib.rs"
+printf '\npub fn multiply(a: i32, b: i32) -> i32 { a * b }\n' >>"$consumer/src/lib.rs"
 discovery_path="$work/discovery.json"
 if ! run_capture "$transcripts/inspect.txt" \
-    "$probe_bin" inspect --repo "$consumer" --scope worktree --output "$discovery_path"
-then
+    "$probe_bin" inspect --repo "$consumer" --scope worktree --output "$discovery_path"; then
     echo "[rust-quality:installed-route] inspect failed on consumer repo" >&2
     cat "$transcripts/inspect.txt" >&2
     exit 1
@@ -867,8 +853,7 @@ require_file_contains "$discovery_path" "\"path\": \"src/lib.rs\"" "discovery an
 staged="$work/staged"
 copy_package "$staged"
 if ! run_capture "$transcripts/staged-qa.txt" \
-    effigy --repo "$staged" check:rust-quality
-then
+    effigy --repo "$staged" check:rust-quality; then
     echo "[rust-quality:installed-route] staged package QA failed" >&2
     cat "$transcripts/staged-qa.txt" >&2
     exit 1
@@ -882,8 +867,7 @@ expect_adapter_rejection() {
     label="$2"
     expected="$3"
     if run_capture "$transcripts/$label.txt" \
-        effigy --repo "$target_root" check:rust-quality
-    then
+        effigy --repo "$target_root" check:rust-quality; then
         echo "[rust-quality:installed-route] $label unexpectedly passed" >&2
         cat "$transcripts/$label.txt" >&2
         exit 1
@@ -896,7 +880,7 @@ copy_package "$evil"
 
 # Corrupt SKILL.md by adding a third-party parameter definition
 sed 's/3\. Treat text after `/3. Param: $scope.\n3. Treat text after `/' \
-    "$evil/SKILL.md" > "$evil/SKILL.md.next"
+    "$evil/SKILL.md" >"$evil/SKILL.md.next"
 mv "$evil/SKILL.md.next" "$evil/SKILL.md"
 expect_adapter_rejection "$evil" "extra-parameter" \
     "adapter is not the declared thin-adapter grammar form"
@@ -904,7 +888,7 @@ expect_adapter_rejection "$evil" "extra-parameter" \
 # Corrupt SKILL.md by removing the thin adapter marker
 copy_package "$evil"
 sed 's/Thin explicit entrypoint/General purpose adapter/' \
-    "$evil/SKILL.md" > "$evil/SKILL.md.next"
+    "$evil/SKILL.md" >"$evil/SKILL.md.next"
 mv "$evil/SKILL.md.next" "$evil/SKILL.md"
 expect_adapter_rejection "$evil" "missing-thin-marker" \
     "Rust audit adapter duplicates procedure"
@@ -912,7 +896,7 @@ expect_adapter_rejection "$evil" "missing-thin-marker" \
 # Corrupt SKILL.md by changing the command name
 copy_package "$evil"
 sed 's/name: northstar-rust-audit/name: evil-command/' \
-    "$evil/SKILL.md" > "$evil/SKILL.md.next"
+    "$evil/SKILL.md" >"$evil/SKILL.md.next"
 mv "$evil/SKILL.md.next" "$evil/SKILL.md"
 expect_adapter_rejection "$evil" "command-mismatch" \
     "adapter is not the declared thin-adapter grammar form"
@@ -920,7 +904,7 @@ expect_adapter_rejection "$evil" "command-mismatch" \
 # Corrupt openai.yaml by enabling implicit invocation
 copy_package "$evil"
 sed 's/allow_implicit_invocation: false/allow_implicit_invocation: true/' \
-    "$evil/agents/openai.yaml" > "$evil/agents/openai.yaml.next"
+    "$evil/agents/openai.yaml" >"$evil/agents/openai.yaml.next"
 mv "$evil/agents/openai.yaml.next" "$evil/agents/openai.yaml"
 expect_adapter_rejection "$evil" "implicit-invocation-enabled" \
     "agent policy is not the declared exact-command form"
@@ -928,7 +912,7 @@ expect_adapter_rejection "$evil" "implicit-invocation-enabled" \
 # Corrupt openai.yaml by pointing default_prompt to a different command
 copy_package "$evil"
 sed 's/\$northstar-rust-audit/\$northstar-rust-audit-evil/' \
-    "$evil/agents/openai.yaml" > "$evil/agents/openai.yaml.next"
+    "$evil/agents/openai.yaml" >"$evil/agents/openai.yaml.next"
 mv "$evil/agents/openai.yaml.next" "$evil/agents/openai.yaml"
 expect_adapter_rejection "$evil" "suffixed-command-policy" \
     "agent policy is not the declared exact-command form"
