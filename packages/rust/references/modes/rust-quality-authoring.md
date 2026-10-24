@@ -80,6 +80,12 @@ any mutation authority.
   worktree and returns only tranche paths, applicable rules, normalized
   statuses, diagnostic identifiers, and limitations. Do not load the audit
   projection or ledger.
+- When the tranche is committed and the checkout is at its head, name it with
+  `--base <rev> --head <rev>` rather than dirtying the worktree to manufacture
+  an anchor. The committed form records exact commit identities and the
+  packages the range corrects, preserves dirty files outside the range, and
+  reuses an identical capture instead of rerunning it. Never present a worktree
+  snapshot as proof of committed bytes, and never widen it to repository scope.
 - Report changed scope, applicable rules, deviations or blockers, validation,
   and remaining limitations.
 
