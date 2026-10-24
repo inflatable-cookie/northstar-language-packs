@@ -120,10 +120,10 @@ finally:
 # 2. Validate @northstar/typescript-quality release identities
 ts_pkg = os.path.join(repo_root, 'packages/typescript')
 ts_count, ts_tree_digest = compute_spec_034_tree_digest(ts_pkg)
-expected_ts_tree = 'sha256:3898713bdc0a13fef02ac0f603e0a00dee8c720525f0f564b28c0f6fb10152a7'
+expected_ts_tree = 'sha256:0ccb43a6bd0e51c1639255df74d415d639bbe76888e83158dc6e5c2ae87c413c'
 assert ts_tree_digest == expected_ts_tree, f'TypeScript Spec-034 tree digest mismatch: {ts_tree_digest} != {expected_ts_tree}'
 
-expected_ts_manifest = 'sha256:8738875e1e75a1157b03787b43dada415e5cb976af0ebf915aaccc9ed06a45f0'
+expected_ts_manifest = 'sha256:98f26f0d1bdf3c2a403f294075248f5fb45652da478997d44f0dd76b43eb09e7'
 ts_manifest = file_sha256(os.path.join(ts_pkg, 'northstar-package.json'))
 assert ts_manifest == expected_ts_manifest, f'TypeScript manifest mismatch: {ts_manifest} != {expected_ts_manifest}'
 

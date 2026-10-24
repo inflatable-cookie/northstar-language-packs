@@ -27,7 +27,7 @@ policy.
 
 | Package | Path | Version | Core range | Workflows |
 | --- | --- | --- | --- | --- |
-| `@northstar/typescript-quality` | `packages/typescript` | `0.2.2` | `>=0.2.0 <1.0.0` | `explicit_audit_repair` |
+| `@northstar/typescript-quality` | `packages/typescript` | `0.2.3` | `>=0.2.0 <1.0.0` | `explicit_audit_repair` |
 | `@northstar/rust-quality` | `packages/rust` | `0.2.4` | `>=0.2.0 <1.0.0` | `everyday_authoring`, `explicit_audit_repair` |
 
 The TypeScript package owns the `base`, `svelte`, and `sveltekit` overlays. The
@@ -85,7 +85,7 @@ Current immutable identities:
 
 | Package | Files | Package-tree digest | Manifest digest |
 | --- | --- | --- | --- |
-| `@northstar/typescript-quality` | 21 | `sha256:3898713bdc0a13fef02ac0f603e0a00dee8c720525f0f564b28c0f6fb10152a7` | `sha256:8738875e1e75a1157b03787b43dada415e5cb976af0ebf915aaccc9ed06a45f0` |
+| `@northstar/typescript-quality` | 21 | `sha256:0ccb43a6bd0e51c1639255df74d415d639bbe76888e83158dc6e5c2ae87c413c` | `sha256:98f26f0d1bdf3c2a403f294075248f5fb45652da478997d44f0dd76b43eb09e7` |
 | `@northstar/rust-quality` | 60 | `sha256:7d5ec03d76c7e8044e52184fec8cae62810d0e17a12762bb574ceb30d416d52f` | `sha256:bd45c822c16cad96dec399286674ce2a142349ae258c27759f5c7c525b6ba162` |
 
 `scripts/verify-package-identities.sh` is the oracle for these values. It fails
