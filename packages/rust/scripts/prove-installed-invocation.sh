@@ -294,7 +294,7 @@ SOURCE_MAP = {
     'skills/northstar/tools/rust-quality/src/lib.rs': ('tools/rust-quality/src/lib.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/src/lifecycle.rs': ('tools/rust-quality/src/lifecycle.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/src/main.rs': ('tools/rust-quality/src/main.rs', 'package_adapted'),
-    'skills/northstar/tools/rust-quality/src/plan.rs': ('tools/rust-quality/src/plan.rs', 'byte_exact'),
+    'skills/northstar/tools/rust-quality/src/plan.rs': ('tools/rust-quality/src/plan.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/tests/cli.rs': ('tools/rust-quality/tests/cli.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/tests/detectors.rs': ('tools/rust-quality/tests/detectors.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.lock': ('tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.lock', 'byte_exact'),
@@ -325,9 +325,10 @@ ADAPTED_EXPECTED = {
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
     'scripts/check-rust-quality.rhai': 'sha256:8cec2154a31ef425b9617f0f1e9532c313eb0630dcea6b12322705b8bf1c5529',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
-    'tools/rust-quality/src/evidence.rs': 'sha256:5a6e2d45b4364a9496672aa8fd3a4e0e81f75b7ded3d607b22c880129af9fa74',
+    'tools/rust-quality/src/evidence.rs': 'sha256:4bc64ff0ff11bae36a5383d96850414b4c876136bb54d3108f98dbd18d164ac1',
     'tools/rust-quality/src/lib.rs': 'sha256:47c25310a78065bd25128d4020d366130161b23ef6f5d3197f27ce0496214547',
     'tools/rust-quality/src/main.rs': 'sha256:e9b0832d4728d45c3360aef1e5b9c4c03b20211f250e11c4766efd99c7a253f3',
+    'tools/rust-quality/src/plan.rs': 'sha256:153e2185b330c68deb0cc7ca4e5e3fda7644ba07693d14f97f14a20fb86743b9',
     'tools/rust-quality/tests/cli.rs': 'sha256:f2323492defe0dc8e0d54d6ce7f2b81d9c045db12b2b0455b67589cb41879ec1',
 }
 
@@ -353,12 +354,12 @@ def verify_source_parity(pkg_root):
 
 verify_source_parity(root)
 
-assert counts['byte_exact'] == 35, f'Expected 35 byte_exact, got {counts[\"byte_exact\"]}'
+assert counts['byte_exact'] == 34, f'Expected 34 byte_exact, got {counts[\"byte_exact\"]}'
 assert counts['eof_newline_normalized'] == 4, f'Expected 4 eof_newline_normalized, got {counts[\"eof_newline_normalized\"]}'
-assert counts['package_adapted'] == 15, f'Expected 15 package_adapted, got {counts[\"package_adapted\"]}'
+assert counts['package_adapted'] == 16, f'Expected 16 package_adapted, got {counts[\"package_adapted\"]}'
 
 # Negative 1: unrecorded rewrite in a byte_exact file fails closed
-tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/plan.rs')
+tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/ledger.rs')
 with open(tampered_byte_exact, 'rb') as f:
     orig_b = f.read()
 try:
@@ -737,8 +738,8 @@ then
 fi
 require_file_contains "$receipt_path" "\"current\": true" "probe receipt current"
 require_file_contains "$receipt_path" "\"schema_version\": \"northstar.rust-quality.install.v1\"" "probe receipt schema"
-require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"d07d897806673db67cf92f25864b3809c28f5ace05e930644ff888ba5e228029\"" "probe embedded payload hash"
-require_file_contains "$receipt_path" "\"source_payload_sha256\": \"d07d897806673db67cf92f25864b3809c28f5ace05e930644ff888ba5e228029\"" "probe source payload hash"
+require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"02136235a756e787a8d71809a01b4e565c7ebfb21321882c635411162558bf8a\"" "probe embedded payload hash"
+require_file_contains "$receipt_path" "\"source_payload_sha256\": \"02136235a756e787a8d71809a01b4e565c7ebfb21321882c635411162558bf8a\"" "probe source payload hash"
 
 # Tamper negatives: mutating source must cause verify-install to fail closed
 tampered="$work/tampered-tool"

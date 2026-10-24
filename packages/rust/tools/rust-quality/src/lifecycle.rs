@@ -767,13 +767,7 @@ pub fn collect_audit_evidence(
         .iter()
         .map(|unit| unit.unit_id.clone())
         .collect::<BTreeSet<_>>();
-    collect(
-        &root,
-        &record_root.join("evidence"),
-        plan,
-        Some(&units),
-        None,
-    )
+    collect(&root, &record_root.join("evidence"), plan, Some(&units))
 }
 
 fn load_audit(

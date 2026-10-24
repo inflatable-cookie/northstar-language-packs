@@ -77,7 +77,7 @@ Current immutable identities:
 | Package | Files | Package-tree digest | Manifest digest |
 | --- | --- | --- | --- |
 | `@northstar/typescript-quality` | 21 | `sha256:06725f4ca633e660db18cabed65ceb76e61f43708271446697bf48a0b83e80f3` | `sha256:e776287f93fe9ef2e74817dafd980b15c0c90846baf7cbb5bfa06e6d53e8abc1` |
-| `@northstar/rust-quality` | 60 | `sha256:f25979fd704ffa7a554295804aefed5753205401e3f2e53e70844dea635a8d79` | `sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334` |
+| `@northstar/rust-quality` | 60 | `sha256:3e6d4b4f49bcbc423700c4a60977626b2e2c3423b41e13c1fb4317db36cb9b86` | `sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334` |
 
 `scripts/verify-package-identities.sh` is the oracle for these values. It fails
 when a package file changes without the identity being updated.

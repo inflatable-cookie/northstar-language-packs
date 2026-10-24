@@ -215,6 +215,21 @@ pub fn collect(
     record_root: &Path,
     plan: EvidencePlan,
     audit_units: Option<&BTreeSet<String>>,
+) -> Result<CollectionReceipt, String> {
+    collect_bound(repository_root, record_root, plan, audit_units, None)
+}
+
+/// Runs [`collect`] with an optional committed-range evidence binding.
+///
+/// # Errors
+///
+/// Returns the same errors as [`collect`], plus a source or request mismatch
+/// when a bound identity already holds evidence that is not this request.
+pub fn collect_bound(
+    repository_root: &Path,
+    record_root: &Path,
+    plan: EvidencePlan,
+    audit_units: Option<&BTreeSet<String>>,
     binding: Option<&EvidenceBinding<'_>>,
 ) -> Result<CollectionReceipt, String> {
     let mapping = mapping()?;
@@ -454,7 +469,7 @@ pub fn closeout(
         .iter()
         .map(|item| item.path.clone())
         .collect();
-    let receipt = collect(&root, &root_for_snapshot.join("evidence"), plan, None, None)?;
+    let receipt = collect(&root, &root_for_snapshot.join("evidence"), plan, None)?;
     Ok(finish_closeout(
         discovery,
         changed_files,
@@ -496,7 +511,7 @@ pub fn closeout_committed(
         source_identity: &source_identity,
         reuse: true,
     };
-    let receipt = collect(
+    let receipt = collect_bound(
         &root,
         &record_root.join("evidence"),
         plan,
@@ -1274,7 +1289,6 @@ mod tests {
                 }],
             },
             Some(&units),
-            None,
         )
         .expect_err("ambiguous coverage");
         assert!(
