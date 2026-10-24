@@ -1,3 +1,6 @@
+[manifest]
+minimum_effigy_version = "0.15.0"
+
 [catalog]
 alias = "northstar-language-packs"
 
@@ -18,7 +21,7 @@ alias = "northstar-language-packs"
   { task = "qa:northstar:agent-contract" },
   { task = "qa:northstar:front-door" },
 ]
-"qa:packages:identities" = "scripts/verify-package-identities.sh"
+"qa:packages:identities" = { run = "scripts/verify-package-identities.sh", durable = true }
 "qa:packages" = [
   { task = "qa:packages:identities" },
 ]

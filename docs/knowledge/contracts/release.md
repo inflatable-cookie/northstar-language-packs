@@ -44,6 +44,12 @@ file. Current values are in
   digests for both packages.
 - The identities recorded in
   [architecture](../architecture.md#packages) match the script.
+- The installed-route proof launches named and `skill run` Effigy children from
+  shell code. Its selector and the root `qa:packages:identities` selector that
+  shells into it declare `durable = true` (Effigy contract 052 §3.1), which
+  makes their QA groups durable too. Both catalogues therefore require Effigy
+  `0.15.0`, and both selectors run plainly: no `--run-id` or capability
+  workaround.
 - The installed-route proof reads the pinned Northstar source from
   `NORTHSTAR_SOURCE` or its third argument. Clone `inflatable-cookie/northstar`
   into a scratch checkout, check out `69e4d5d`, and point `NORTHSTAR_SOURCE` at

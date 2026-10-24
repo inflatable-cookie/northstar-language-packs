@@ -212,7 +212,7 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334'
+expected_manifest = 'sha256:be2f41b4cab44c7b4acc524a6d49e8e6a01bd95c20aeca0cead129b5842fa4e5'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
@@ -323,7 +323,7 @@ ADAPTED_EXPECTED = {
     'references/modes/rust-quality-authoring.md': 'sha256:8cbdc3d1abebc8793ec9294ca4d49fcef6a3410f38134ce807d89b3e90ed0943',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:7fc39dd05d120a01a84c3df88f56c87132742a09cc60bd0bcc47f879e305db86',
+    'scripts/check-rust-quality.rhai': 'sha256:77f158b770b3fdf7838c8e9775b6758ae287ec99e37b70adac09495360233d81',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
     'tools/rust-quality/src/evidence.rs': 'sha256:3c355998759f4bfc35511031c878008f78a4373997aaabe52162c061f010c700',
     'tools/rust-quality/src/lib.rs': 'sha256:337832a0fef342aafbb81574722e73fa3afb99979d8e86313b9e753fb5960031',
