@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- Repair `@northstar/rust-quality` `0.2.3` discovery. `inspect` reports exactly
+the workspaces Cargo resolves: a workspace-inheriting manifest with no
+workspace root, and a manifest its resolved enclosing workspace does not own
+or exclude, stays out of the inventory instead of failing discovery. Malformed
+real members and broken member inheritance still fail closed. New engine
+fixtures cover root members, an independent nested workspace, unowned
+templates, malformed members, unrelated content and deterministic
+attribution. The repair produces a replacement package identity. `oxide init`
+adopts the repository; the engine suite stays on plain Cargo because its
+fixtures run Cargo themselves and Oxide's inherited target directory changes
+those results.
+
 - Release `@northstar/rust-quality` `0.2.3`. The manifest declares one
   buildable `tool`: Northstar's lifecycle builds it during acquisition into its
   own cache with an explicit target directory and records the absolute binary in

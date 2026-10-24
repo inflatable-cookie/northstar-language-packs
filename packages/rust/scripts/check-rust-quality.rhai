@@ -720,6 +720,7 @@ fn expected_package_files() {
         "scripts/prove-installed-invocation.sh",
         "scripts/rust-quality-setup.rhai",
         "scripts/self-check.sh",
+        "tools/rust-quality/.gitignore",
         "tools/rust-quality/Cargo.lock",
         "tools/rust-quality/Cargo.toml",
         "tools/rust-quality/assets/diagnostic-mapping.json",
@@ -764,7 +765,7 @@ fn validate_inventory(package_root) {
     for relative in expected {
         require(files.contains(relative), "missing package file: " + relative);
     }
-    require(files.len() == 59, "package must contain exactly 59 files");
+    require(files.len() == 60, "package must contain exactly 60 files");
 }
 
 fn thin_adapter_command() {
@@ -1137,4 +1138,4 @@ for filename in ["catalogue.json", "strict-authoring.json", "strict-audit.json"]
     require(!text.contains("answer_key") && !text.contains("expected_findings"), filename + " leaks prototype oracle data");
 }
 
-log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 59-file inventory, 11 catalogue/manifest/bootstrap, declared tool recipe, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday opt-in and explicit audit)");
+log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 60-file inventory, 11 catalogue/manifest/bootstrap, declared tool recipe, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday opt-in and explicit audit)");

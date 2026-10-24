@@ -50,12 +50,21 @@ that file. The rust setup task writes the setting and the activation block only
 when asked with `--everyday-authoring`. A repository without it still gets the
 explicit audit workflow.
 
+Rust workspace discovery reports exactly the workspaces Cargo resolves. A
+manifest that inherits workspace fields while Cargo finds no workspace root,
+or that its resolved enclosing workspace neither owns nor excludes, is not a
+workspace and stays out of the inventory. Those are unowned templates, such as
+Longhorn's `examples/greenfield-compositions`, which are rebuilt inside a
+generated private workspace. A real member's failure still fails discovery:
+its workspace's own metadata call reports it, and a member whose inheritance
+names a field the root does not define is reported as such.
+
 Current immutable identities:
 
 | Package | Files | Package-tree digest | Manifest digest |
 | --- | --- | --- | --- |
 | `@northstar/typescript-quality` | 21 | `sha256:06725f4ca633e660db18cabed65ceb76e61f43708271446697bf48a0b83e80f3` | `sha256:e776287f93fe9ef2e74817dafd980b15c0c90846baf7cbb5bfa06e6d53e8abc1` |
-| `@northstar/rust-quality` | 59 | `sha256:67261b22f5cb766e83606f87425e793b385dd952baf1fae1f6348b257270ab39` | `sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334` |
+| `@northstar/rust-quality` | 60 | `sha256:902f8fd6464fddf3fabb8eb8acd0470bc761e8564671b70c72bc0acb1cda9cbd` | `sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334` |
 
 `scripts/verify-package-identities.sh` is the oracle for these values. It fails
 when a package file changes without the identity being updated.

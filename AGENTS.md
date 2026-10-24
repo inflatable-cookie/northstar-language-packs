@@ -28,6 +28,14 @@ Commands go through Effigy from the repository root:
 - `effigy qa` — the full repository check
 - `scripts/verify-package-identities.sh` — the release-identity oracle
 
+Package checks run from `packages/rust` through its own catalogue:
+`effigy check:rust-quality`, `effigy test:rust-quality-setup`,
+`effigy test:rust-quality-engine`, and
+`effigy test:rust-quality-installed-route`. The engine suite stays on plain
+Cargo: its fixtures run Cargo themselves, and `oxide`'s inherited target
+directory lets same-named fixtures share one Cargo unit, which changes test
+results.
+
 ## Product rules
 
 - Every package stays independently addressable. Installing one language must
@@ -61,3 +69,18 @@ Write in the short, blunt house style defined by
 `effigy qa` before opening a PR. Package work must also prove package-scoped
 source/install parity, the change's negative oracle, and exact immutable
 identity.
+
+<!-- oxide:begin -->
+<!-- oxide:workspaces: packages/rust/tools/rust-quality -->
+## Rust commands: use `oxide`
+
+Covers Cargo workspaces `packages/rust/tools/rust-quality`, relative to this file's folder.
+
+- Write `oxide` wherever you would write `cargo`: `oxide check`, `oxide test`, `oxide run -- <args>`, `oxide add <crate>`.
+- Profiles: `quick` (default), `--profile debug` for a debugger, `--release`. Oxide places build output, so it refuses `--target-dir`.
+- A tool that runs Cargo itself (Tauri CLI, npm or bun scripts): `oxide exec -- <command>`.
+- A `waiting for …` line means another build holds a slot; let it wait. `oxide status` shows the pool, slots and waits.
+- Use `oxide clean`, not `cargo clean`.
+
+Managed by `oxide init`; edits between these markers are replaced.
+<!-- oxide:end -->
