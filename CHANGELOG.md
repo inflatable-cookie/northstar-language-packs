@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- Repair `@northstar/rust-quality` `0.2.3` everyday closeout. `inspect` and
+`closeout` take an explicit committed tranche (`--scope committed --base <rev>
+--head <rev>`, and `--base/--head` on `closeout`). The tool resolves exact
+commit identities, rejects an invalid revision, a non-ancestor, empty or
+anchorless range, a checkout that is not the range head, and any committed path
+dirty in the worktree. It records the changed Rust anchors, the Cargo packages
+and workspace roots the range corrects, and the dirty files it preserved
+outside the tranche. Evidence is stored and stamped under the exact range
+identity: an identical request is reused without rerunning, and a repeat of the
+same plan still reports every applicable class it already holds, including a
+sealed `unrun` limitation for a class no request named. A record from another
+range or another request fails closed instead of being substituted.
+The dirty-worktree closeout keeps its existing single-snapshot behavior. New
+engine fixtures cover clean pinned heads, a real Rust change, empty and
+no-Rust ranges, invalid and unbounded revisions, checkout mismatch, dirty range
+paths, dirty-state preservation, reuse, and mismatched or stale evidence. The
+repair produces a replacement package identity; the version, workflows,
+declaration and compatibility range are unchanged.
+
 - Repair `@northstar/rust-quality` `0.2.3` discovery. `inspect` reports exactly
 the workspaces Cargo resolves: a workspace-inheriting manifest with no
 workspace root, and a manifest its resolved enclosing workspace does not own

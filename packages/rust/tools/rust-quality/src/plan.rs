@@ -88,6 +88,12 @@ pub fn build_scope_plan(
     input: ScopePlanInput,
 ) -> Result<ScopePlan, String> {
     validate_identifier(&input.audit_id, "scope.audit_id")?;
+    if discovery.scope == Scope::Committed {
+        return Err(
+            "scope.committed_audit_unsupported: committed ranges are everyday closeout only"
+                .to_owned(),
+        );
+    }
     if input.units.is_empty() {
         return Err("scope.units_empty: at least one assessed unit is required".to_owned());
     }

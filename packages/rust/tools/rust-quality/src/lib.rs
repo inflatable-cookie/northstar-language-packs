@@ -11,7 +11,10 @@ mod ledger;
 mod lifecycle;
 mod plan;
 
-pub use evidence::{Closeout, CollectionReceipt, EvidencePlan, closeout, collect};
+pub use evidence::{
+    Closeout, CollectionReceipt, EvidenceBinding, EvidencePlan, closeout, closeout_committed,
+    collect,
+};
 
 pub use ledger::{Assessment, AssessmentInput, StrictProjection, validate_assessment};
 pub use lifecycle::{
@@ -28,6 +31,8 @@ pub const PAYLOAD_SHA256: &str = env!("NORTHSTAR_RUST_QUALITY_PAYLOAD_SHA256");
 pub enum Scope {
     Worktree,
     Repository,
+    /// An explicit committed range, resolved by `--base` and `--head`.
+    Committed,
 }
 
 impl Scope {
@@ -35,11 +40,12 @@ impl Scope {
     ///
     /// # Errors
     ///
-    /// Returns an error when `value` is neither `worktree` nor `repository`.
+    /// Returns an error when `value` is not a supported scope name.
     pub fn parse(value: &str) -> Result<Self, String> {
         match value {
             "worktree" => Ok(Self::Worktree),
             "repository" => Ok(Self::Repository),
+            "committed" => Ok(Self::Committed),
             _ => Err(format!("unsupported scope `{value}`")),
         }
     }
@@ -52,13 +58,53 @@ pub struct DiscoveryRecord {
     pub repository_root: String,
     pub scope: Scope,
     pub cargo_version: String,
+    /// Worktree files that are dirty and stay outside the assessed tranche.
     pub dirty_files: Vec<DirtyFile>,
+    /// For committed scope the anchors of the committed range, never the
+    /// worktree's dirty files.
     pub rust_anchors: Vec<RustAnchor>,
     pub workspaces: Vec<CargoWorkspace>,
     pub snapshot_sha256: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub committed_range: Option<CommittedRange>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+/// Exact committed tranche identity for an explicit `base..head` range.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct CommittedRange {
+    pub base_commit: String,
+    pub head_commit: String,
+    pub checkout_commit: String,
+    pub identity_sha256: String,
+    pub changed_files: Vec<DirtyFile>,
+    pub direct_surface: DirectSurface,
+}
+
+impl CommittedRange {
+    /// Stable evidence binding for this exact range.
+    #[must_use]
+    pub fn source_identity(&self) -> String {
+        format!("committed:{}:{}", self.base_commit, self.head_commit)
+    }
+
+    /// Paths of the committed tranche, excluding preserved dirty worktree state.
+    #[must_use]
+    pub fn changed_paths(&self) -> Vec<String> {
+        self.changed_files
+            .iter()
+            .map(|file| file.path.clone())
+            .collect()
+    }
+}
+
+/// Rust packages and workspaces a committed tranche directly corrects.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct DirectSurface {
+    pub packages: Vec<String>,
+    pub workspaces: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DirtyFile {
     pub path: String,
     pub status: String,
@@ -159,10 +205,226 @@ pub fn inspect(repository: &Path, scope: Scope) -> Result<DiscoveryRecord, Strin
         rust_anchors,
         workspaces,
         snapshot_sha256: String::new(),
+        committed_range: None,
     };
     let canonical = serde_json::to_vec(&record).map_err(|error| error.to_string())?;
     record.snapshot_sha256 = format!("{:x}", Sha256::digest(canonical));
     Ok(record)
+}
+
+/// Discovers an explicit committed range on a checkout of its exact head.
+///
+/// The checked-out commit must equal `head`, no committed path may be dirty,
+/// and the range must be non-empty, bounded by an ancestor `base`, and carry
+/// at least one Rust anchor. Dirty worktree state outside the range is
+/// preserved and recorded, never absorbed into the tranche.
+///
+/// # Errors
+///
+/// Returns a structured `scope.*` or `cargo.*` error for an invalid revision,
+/// an unbounded or empty range, a missing Rust anchor, a mismatched checkout,
+/// a dirty range path, or a discovery failure.
+pub fn inspect_range(
+    repository: &Path,
+    base: &str,
+    head: &str,
+) -> Result<DiscoveryRecord, String> {
+    let repository_root = git_root(repository)?;
+    let base_commit = resolve_commit(&repository_root, base, "scope.base_invalid")?;
+    let head_commit = resolve_commit(&repository_root, head, "scope.head_invalid")?;
+    if !is_ancestor(&repository_root, &base_commit, &head_commit)? {
+        return Err(format!(
+            "scope.range_unbounded: {base_commit} is not an ancestor of {head_commit}"
+        ));
+    }
+    let checkout_commit = resolve_commit(&repository_root, "HEAD", "scope.checkout_missing")?;
+    if checkout_commit != head_commit {
+        return Err(format!(
+            "scope.checkout_mismatch: checked out {checkout_commit}, range head is {head_commit}"
+        ));
+    }
+    let changed_files = changed_files(&repository_root, &base_commit, &head_commit)?;
+    if changed_files.is_empty() {
+        return Err(format!(
+            "scope.range_empty: {base_commit}..{head_commit} changes no path"
+        ));
+    }
+    let rust_anchors = anchors(&changed_files);
+    if rust_anchors.is_empty() {
+        return Err(format!(
+            "scope.no_committed_anchor: {base_commit}..{head_commit} changes no Rust anchor"
+        ));
+    }
+
+    let dirty_files = git_status(&repository_root)?;
+    let committed_paths: BTreeSet<&str> = changed_files
+        .iter()
+        .map(|file| file.path.as_str())
+        .collect();
+    let dirty_range: Vec<&str> = dirty_files
+        .iter()
+        .filter(|file| committed_paths.contains(file.path.as_str()))
+        .map(|file| file.path.as_str())
+        .collect();
+    if !dirty_range.is_empty() {
+        return Err(format!(
+            "scope.checkout_dirty_range: committed paths are dirty in the worktree: {}",
+            dirty_range.join(", ")
+        ));
+    }
+
+    let manifests = discover_manifests(&repository_root)?;
+    if manifests.is_empty() {
+        return Err("cargo.no_manifest: no Cargo.toml found beneath repository root".to_owned());
+    }
+    let workspaces = inspect_workspaces(&repository_root, &manifests)?;
+    let cargo_version = command_text(Command::new(cargo()).arg("--version"), "cargo.version")?;
+    let direct_surface = direct_surface(&workspaces, &changed_files);
+
+    let mut record = DiscoveryRecord {
+        schema_version: SCHEMA_VERSION.to_owned(),
+        tool_version: env!("CARGO_PKG_VERSION").to_owned(),
+        repository_root: slash(&repository_root),
+        scope: Scope::Committed,
+        cargo_version,
+        dirty_files,
+        rust_anchors,
+        workspaces,
+        snapshot_sha256: String::new(),
+        committed_range: Some(CommittedRange {
+            identity_sha256: range_identity(&base_commit, &head_commit),
+            base_commit,
+            head_commit,
+            checkout_commit,
+            changed_files,
+            direct_surface,
+        }),
+    };
+    let canonical = serde_json::to_vec(&record).map_err(|error| error.to_string())?;
+    record.snapshot_sha256 = format!("{:x}", Sha256::digest(canonical));
+    Ok(record)
+}
+
+fn resolve_commit(
+    repository_root: &Path,
+    revision: &str,
+    code: &str,
+) -> Result<String, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repository_root)
+        .args(["rev-parse", "--verify", "--quiet"])
+        .arg(format!("{revision}^{{commit}}"))
+        .output()
+        .map_err(|error| format!("{code}.startup: {error}"))?;
+    if !output.status.success() {
+        return Err(format!("{code}: `{revision}` is not a commit"));
+    }
+    let commit = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    if commit.len() != 40 || !commit.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(format!(
+            "{code}: `{revision}` did not resolve to an exact commit"
+        ));
+    }
+    Ok(commit)
+}
+
+fn is_ancestor(
+    repository_root: &Path,
+    ancestor: &str,
+    descendant: &str,
+) -> Result<bool, String> {
+    let status = Command::new("git")
+        .arg("-C")
+        .arg(repository_root)
+        .args(["merge-base", "--is-ancestor"])
+        .arg(ancestor)
+        .arg(descendant)
+        .status()
+        .map_err(|error| format!("scope.range_check.startup: {error}"))?;
+    match status.code() {
+        Some(0) => Ok(true),
+        Some(1) => Ok(false),
+        _ => Err("scope.range_check_failed: git merge-base did not answer".to_owned()),
+    }
+}
+
+fn changed_files(
+    repository_root: &Path,
+    base_commit: &str,
+    head_commit: &str,
+) -> Result<Vec<DirtyFile>, String> {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repository_root)
+        .args(["diff", "--name-status", "--no-renames", "-z"])
+        .arg(base_commit)
+        .arg(head_commit)
+        .output()
+        .map_err(|error| format!("scope.range_diff.startup: {error}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "scope.range_diff.failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
+    }
+    let fields: Vec<&[u8]> = output
+        .stdout
+        .split(|byte| *byte == 0)
+        .filter(|field| !field.is_empty())
+        .collect();
+    let mut changed = Vec::new();
+    for pair in fields.chunks(2) {
+        let [status, path] = pair else {
+            return Err("scope.range_diff.parse: truncated record".to_owned());
+        };
+        changed.push(DirtyFile {
+            path: String::from_utf8_lossy(path).into_owned(),
+            status: String::from_utf8_lossy(status).into_owned(),
+        });
+    }
+    changed.sort_by(|left, right| left.path.cmp(&right.path));
+    Ok(changed)
+}
+
+fn range_identity(base_commit: &str, head_commit: &str) -> String {
+    format!(
+        "{:x}",
+        Sha256::digest(format!(
+            "northstar.rust-quality.committed-range.v1\n{base_commit}\n{head_commit}"
+        ))
+    )
+}
+
+fn direct_surface(workspaces: &[CargoWorkspace], changed: &[DirtyFile]) -> DirectSurface {
+    let paths: BTreeSet<&str> = changed.iter().map(|file| file.path.as_str()).collect();
+    let mut packages = BTreeSet::new();
+    let mut roots = BTreeSet::new();
+    for workspace in workspaces {
+        if paths.contains(workspace.manifest_path.as_str()) {
+            roots.insert(workspace.root.clone());
+        }
+        for package in &workspace.packages {
+            let mut affected = paths.contains(package.manifest_path.as_str());
+            for target in &package.targets {
+                if paths.contains(target.source_path.as_str()) {
+                    affected = true;
+                }
+                if let Some(directory) = Path::new(&target.source_path).parent() {
+                    let prefix = format!("{}/", slash(directory));
+                    affected |= paths.iter().any(|path| path.starts_with(&prefix));
+                }
+            }
+            if affected {
+                packages.insert(package.name.clone());
+                roots.insert(workspace.root.clone());
+            }
+        }
+    }
+    DirectSurface {
+        packages: packages.into_iter().collect(),
+        workspaces: roots.into_iter().collect(),
+    }
 }
 
 /// Compares the binary's embedded payload hash with a skill source tree.

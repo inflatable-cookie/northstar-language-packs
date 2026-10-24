@@ -13,12 +13,41 @@
     "applicable_rules": { "type": "array", "uniqueItems": true, "items": { "type": "string", "pattern": "^RUST-[A-Z]+-[0-9]{3}$" } },
     "evidence": { "type": "array", "items": { "$ref": "#/$defs/evidence" } },
     "limitations": { "type": "array", "items": { "$ref": "#/$defs/limitation" } },
-    "artifact_root": { "type": "string", "minLength": 1 }
+    "artifact_root": { "type": "string", "minLength": 1 },
+    "committed_range": { "$ref": "#/$defs/committed_range" },
+    "reused_evidence": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    }
   },
   "additionalProperties": false,
   "$defs": {
     "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
     "path": { "type": "string", "minLength": 1, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$" },
+    "direct_surface": {
+      "type": "object",
+      "required": ["packages", "workspaces"],
+      "properties": {
+        "packages": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "workspaces": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/path" } }
+      },
+      "additionalProperties": false
+    },
+    "committed_range": {
+      "type": "object",
+      "required": ["base_commit", "head_commit", "checkout_commit", "identity_sha256", "direct_surface", "preserved_dirty_files"],
+      "properties": {
+        "base_commit": { "$ref": "#/$defs/commit" },
+        "head_commit": { "$ref": "#/$defs/commit" },
+        "checkout_commit": { "$ref": "#/$defs/commit" },
+        "identity_sha256": { "$ref": "#/$defs/sha256" },
+        "direct_surface": { "$ref": "#/$defs/direct_surface" },
+        "preserved_dirty_files": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/path" } }
+      },
+      "additionalProperties": false
+    },
     "evidence": {
       "type": "object",
       "required": ["evidence_id", "evidence_class", "status", "warning_count", "diagnostic_identifiers", "catalogue_evidence", "mapping_dispositions"],

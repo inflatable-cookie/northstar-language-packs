@@ -179,7 +179,17 @@ impl Fixture {
     }
 
     fn closeout(&self, input: &Value) -> std::process::Output {
-        let input_path = self.root.join(".git/northstar-test-inputs/closeout.json");
+        self.closeout_in("closeout", input, &[])
+    }
+
+    fn closeout_committed(&self, input: &Value, base: &str, head: &str) -> std::process::Output {
+        self.closeout_in("closeout-committed", input, &["--base", base, "--head", head])
+    }
+
+    fn closeout_in(&self, label: &str, input: &Value, extra: &[&str]) -> std::process::Output {
+        let input_path = self
+            .root
+            .join(format!(".git/northstar-test-inputs/{label}.json"));
         fs::create_dir_all(input_path.parent().expect("closeout input parent"))
             .expect("create closeout input parent");
         fs::write(
@@ -192,8 +202,46 @@ impl Fixture {
             .arg(&self.root)
             .args(["--input"])
             .arg(input_path)
+            .args(extra)
             .output()
             .expect("run closeout")
+    }
+
+    fn inspect_committed(&self, base: &str, head: &str) -> std::process::Output {
+        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+            .args(["inspect", "--repo"])
+            .arg(&self.root)
+            .args(["--scope", "committed", "--base", base, "--head", head])
+            .output()
+            .expect("run committed inspect")
+    }
+
+    fn rev(&self, revision: &str) -> String {
+        let output = Command::new("git")
+            .current_dir(&self.root)
+            .args(["rev-parse", revision])
+            .output()
+            .expect("resolve revision");
+        assert!(
+            output.status.success(),
+            "git rev-parse {revision} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    }
+
+    fn status(&self) -> String {
+        let output = Command::new("git")
+            .current_dir(&self.root)
+            .args(["status", "--porcelain=v1", "--untracked-files=all"])
+            .output()
+            .expect("read git status");
+        assert!(output.status.success(), "git status failed");
+        String::from_utf8_lossy(&output.stdout).into_owned()
+    }
+
+    fn git(&self, arguments: &[&str]) {
+        command(&self.root, "git", arguments);
     }
 
     fn validate_ledger(&self, input: &Value) -> std::process::Output {
@@ -1315,6 +1363,395 @@ fn closes_out_nested_rust_with_compact_evidence_only() {
     assert!(result["evidence"][0].get("raw_artifacts").is_none());
     assert!(result.get("units").is_none());
     assert!(result.get("assessments").is_none());
+}
+
+fn committed_fixture(name: &str) -> (Fixture, String, String) {
+    let fixture = Fixture::new(name);
+    fixture.write("README.md", "fixture\n");
+    fixture.write(
+        "tools/engine/Cargo.toml",
+        "[package]\nname = \"engine\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("tools/engine/src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    let base = fixture.rev("HEAD");
+    fixture.write("tools/engine/src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    fixture.commit();
+    let head = fixture.rev("HEAD");
+    (fixture, base, head)
+}
+
+fn committed_plan() -> Value {
+    serde_json::json!({
+        "applicable_rules": ["RUST-READ-001", "RUST-ERR-001"],
+        "evidence_plan": {
+            "applicable_classes": ["compiler"],
+            "requests": [{
+                "evidence_id": "committed-check",
+                "evidence_class": "compiler",
+                "selector": "git rev-parse HEAD",
+                "origin": "agent_resolved",
+                "package_cwd": "tools/engine",
+                "environment": "fixture checkout at the committed range head",
+                "execution": {
+                    "kind": "command",
+                    "program": "git",
+                    "args": ["rev-parse", "HEAD"]
+                }
+            }]
+        }
+    })
+}
+
+#[test]
+fn records_committed_range_identity_and_direct_surface() {
+    let (fixture, base, head) = committed_fixture("committed-inspect");
+    let record = assert_success(&fixture.inspect_committed(&base, &head), "committed inspect");
+    assert_eq!(record["scope"], "committed");
+    assert_eq!(record["committed_range"]["base_commit"], base.as_str());
+    assert_eq!(record["committed_range"]["head_commit"], head.as_str());
+    assert_eq!(record["committed_range"]["checkout_commit"], head.as_str());
+    assert_eq!(
+        record["committed_range"]["changed_files"],
+        serde_json::json!([{"path": "tools/engine/src/lib.rs", "status": "M"}])
+    );
+    assert_eq!(
+        record["rust_anchors"],
+        serde_json::json!([{"path": "tools/engine/src/lib.rs", "kind": "rust_source"}])
+    );
+    assert_eq!(
+        record["committed_range"]["direct_surface"],
+        serde_json::json!({"packages": ["engine"], "workspaces": ["tools/engine"]})
+    );
+    assert_eq!(record["dirty_files"], serde_json::json!([]));
+
+    let planned = fixture.plan(
+        &record,
+        &serde_json::json!({
+            "audit_id": "committed-audit",
+            "units": [{"unit_id": "core", "anchors": ["tools/engine/src/lib.rs"]}],
+            "excluded_dirty_files": [],
+            "repository_coverage": null
+        }),
+    );
+    assert_lifecycle_error(&planned, "scope.committed_audit_unsupported");
+
+    let identity = record["committed_range"]["identity_sha256"]
+        .as_str()
+        .expect("identity");
+    assert_eq!(identity.len(), 64);
+
+    // The same exact range resolves to the same identity, and a different
+    // range to a different one.
+    let again = assert_success(&fixture.inspect_committed(&base, &head), "repeat inspect");
+    assert_eq!(again["snapshot_sha256"], record["snapshot_sha256"]);
+    assert_eq!(
+        again["committed_range"]["identity_sha256"],
+        record["committed_range"]["identity_sha256"]
+    );
+}
+
+#[test]
+fn rejects_committed_ranges_that_do_not_bind_exact_bytes() {
+    let (fixture, base, head) = committed_fixture("committed-errors");
+
+    assert_lifecycle_error(
+        &fixture.inspect_committed("no-such-revision", &head),
+        "scope.base_invalid",
+    );
+    assert_lifecycle_error(
+        &fixture.inspect_committed(&base, "no-such-revision"),
+        "scope.head_invalid",
+    );
+
+    // A base outside the head's ancestry is an unbounded range.
+    fixture.git(&["checkout", "--quiet", "-b", "side"]);
+    fixture.write("tools/engine/src/lib.rs", "pub fn answer() -> u8 { 7 }\n");
+    fixture.commit();
+    let side = fixture.rev("HEAD");
+    fixture.git(&["checkout", "--quiet", "-"]);
+    assert_lifecycle_error(
+        &fixture.inspect_committed(&side, &head),
+        "scope.range_unbounded",
+    );
+
+    assert_lifecycle_error(&fixture.inspect_committed(&head, &head), "scope.range_empty");
+
+    // A commit that changes no path is still an empty range.
+    fixture.git(&["commit", "--quiet", "--allow-empty", "-m", "empty"]);
+    let empty = fixture.rev("HEAD");
+    assert_lifecycle_error(&fixture.inspect_committed(&head, &empty), "scope.range_empty");
+
+    // A non-Rust tranche has no anchor to close out.
+    fixture.write("NOTES.md", "notes\n");
+    fixture.commit();
+    let docs = fixture.rev("HEAD");
+    assert_lifecycle_error(
+        &fixture.inspect_committed(&empty, &docs),
+        "scope.no_committed_anchor",
+    );
+
+    // The checkout must be the range head.
+    assert_lifecycle_error(
+        &fixture.inspect_committed(&base, &empty),
+        "scope.checkout_mismatch",
+    );
+
+    // A committed path dirty in the worktree no longer holds the committed bytes.
+    fixture.write("tools/engine/src/lib.rs", "pub fn answer() -> u8 { 11 }\n");
+    fixture.commit();
+    let rust = fixture.rev("HEAD");
+    fixture.write("tools/engine/src/lib.rs", "pub fn answer() -> u8 { 12 }\n");
+    assert_lifecycle_error(
+        &fixture.inspect_committed(&docs, &rust),
+        "scope.checkout_dirty_range",
+    );
+
+    let missing = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        .args(["inspect", "--repo"])
+        .arg(&fixture.root)
+        .args(["--scope", "committed"])
+        .output()
+        .expect("run committed inspect");
+    assert_lifecycle_error(&missing, "scope.range_required");
+
+    let unexpected = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        .args(["inspect", "--repo"])
+        .arg(&fixture.root)
+        .args(["--scope", "worktree", "--base", &base, "--head", &head])
+        .output()
+        .expect("run worktree inspect");
+    assert_lifecycle_error(&unexpected, "scope.range_unexpected");
+}
+
+#[test]
+fn committed_closeout_binds_the_range_and_preserves_dirty_state() {
+    let (fixture, base, head) = committed_fixture("committed-closeout");
+    fixture.write("staged.txt", "staged\n");
+    fixture.git(&["add", "staged.txt"]);
+    fixture.write("README.md", "unstaged change\n");
+    fixture.write("notes.txt", "untracked\n");
+    let before = fixture.status();
+    assert!(before.contains("A  staged.txt"), "staged: {before}");
+    assert!(before.contains(" M README.md"), "unstaged: {before}");
+    assert!(before.contains("?? notes.txt"), "untracked: {before}");
+
+    let result = assert_success(
+        &fixture.closeout_committed(&committed_plan(), &base, &head),
+        "committed closeout",
+    );
+    assert_eq!(result["committed_range"]["base_commit"], base.as_str());
+    assert_eq!(result["committed_range"]["head_commit"], head.as_str());
+    assert_eq!(result["committed_range"]["checkout_commit"], head.as_str());
+    assert_eq!(
+        result["changed_files"],
+        serde_json::json!(["tools/engine/src/lib.rs"])
+    );
+    assert_eq!(
+        result["rust_anchors"],
+        serde_json::json!(["tools/engine/src/lib.rs"])
+    );
+    assert_eq!(
+        result["committed_range"]["preserved_dirty_files"],
+        serde_json::json!(["README.md", "notes.txt", "staged.txt"])
+    );
+    assert_eq!(result["evidence"][0]["status"], "passed");
+    assert!(result.get("reused_evidence").is_none());
+    assert!(
+        result["artifact_root"]
+            .as_str()
+            .expect("artifact root")
+            .contains("committed-"),
+        "committed evidence is stored under its own identity: {}",
+        result["artifact_root"]
+    );
+
+    // Dirty user state survives the operation untouched and outside the tranche.
+    assert_eq!(fixture.status(), before);
+    assert_eq!(
+        fs::read_to_string(fixture.root.join("notes.txt")).expect("untracked file"),
+        "untracked\n"
+    );
+    assert_eq!(
+        fs::read_to_string(fixture.root.join("README.md")).expect("unstaged file"),
+        "unstaged change\n"
+    );
+}
+
+#[test]
+fn reuses_captured_committed_evidence_without_rerunning() {
+    let (fixture, base, head) = committed_fixture("committed-reuse");
+    let marker = fixture.root.join(".git/evidence-runs");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": "sh",
+        "args": ["-c", "printf 'run\\n' >> \"$1\"", "sh", marker.to_string_lossy()]
+    });
+    let first = assert_success(
+        &fixture.closeout_committed(&plan, &base, &head),
+        "first committed closeout",
+    );
+    assert_eq!(
+        fs::read_to_string(fixture.root.join(".git/evidence-runs")).expect("run marker"),
+        "run\n"
+    );
+
+    let second = assert_success(
+        &fixture.closeout_committed(&plan, &base, &head),
+        "second committed closeout",
+    );
+    assert_eq!(
+        fs::read_to_string(fixture.root.join(".git/evidence-runs")).expect("run marker"),
+        "run\n",
+        "compatible captured validation is reused, not rerun"
+    );
+    assert_eq!(
+        second["reused_evidence"],
+        serde_json::json!(["committed-check"])
+    );
+    assert_eq!(second["evidence"], first["evidence"]);
+    assert_eq!(second["artifact_root"], first["artifact_root"]);
+
+    // A different request for the same class is not the captured validation.
+    let mut changed = plan.clone();
+    changed["evidence_plan"]["requests"][0]["selector"] =
+        serde_json::json!("git status --porcelain");
+    assert_lifecycle_error(
+        &fixture.closeout_committed(&changed, &base, &head),
+        "evidence.request_mismatch",
+    );
+}
+
+#[test]
+fn repeated_mixed_plan_keeps_sealed_unrun_limitations() {
+    let (fixture, base, head) = committed_fixture("committed-mixed");
+    let marker = fixture.root.join(".git/evidence-runs");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["applicable_classes"] = serde_json::json!(["compiler", "lint"]);
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": "sh",
+        "args": ["-c", "printf 'run\\n' >> \"$1\"", "sh", marker.to_string_lossy()]
+    });
+
+    let first = assert_success(
+        &fixture.closeout_committed(&plan, &base, &head),
+        "first mixed closeout",
+    );
+    assert_eq!(
+        first["evidence"][0]["evidence_id"],
+        "committed-check",
+        "named request"
+    );
+    assert_eq!(first["evidence"][0]["status"], "passed");
+    assert_eq!(
+        first["evidence"][1]["evidence_id"],
+        "unrun-lint",
+        "unrequested applicable class stays an explicit limitation"
+    );
+    assert_eq!(first["evidence"][1]["status"], "unrun");
+    let limitation = serde_json::json!([{
+        "key": "evidence:unrun-lint",
+        "kind": "evidence_unrun",
+        "evidence": ["no selector was declared or resolved for lint"]
+    }]);
+    assert_eq!(first["limitations"], limitation);
+    assert_eq!(
+        fs::read_to_string(&marker).expect("run marker"),
+        "run\n"
+    );
+
+    // The identical repeat reuses both sealed records and reports the same
+    // tranche evidence, including the class that was never requested.
+    let second = assert_success(
+        &fixture.closeout_committed(&plan, &base, &head),
+        "second mixed closeout",
+    );
+    assert_eq!(second["evidence"], first["evidence"]);
+    assert_eq!(second["limitations"], first["limitations"]);
+    assert_eq!(
+        second["reused_evidence"],
+        serde_json::json!(["committed-check", "unrun-lint"])
+    );
+    assert_eq!(
+        fs::read_to_string(&marker).expect("run marker"),
+        "run\n",
+        "reuse never reruns the captured request"
+    );
+}
+
+#[test]
+fn rejects_evidence_captured_for_another_committed_range() {
+    let (fixture, base, head) = committed_fixture("committed-stale");
+    let first = assert_success(
+        &fixture.closeout_committed(&committed_plan(), &base, &head),
+        "first committed closeout",
+    );
+
+    fixture.write("tools/engine/src/extra.rs", "pub fn extra() -> u8 { 1 }\n");
+    fixture.commit();
+    let later = fixture.rev("HEAD");
+    let second_record = assert_success(
+        &fixture.inspect_committed(&head, &later),
+        "inspect second range",
+    );
+    let identity = second_record["committed_range"]["identity_sha256"]
+        .as_str()
+        .expect("identity");
+
+    let first_root = PathBuf::from(first["artifact_root"].as_str().expect("artifact root"));
+    let closeouts = first_root.parent().expect("closeouts root").to_path_buf();
+    let planted = closeouts
+        .join(format!("committed-{identity}"))
+        .join("evidence");
+    fs::create_dir_all(planted.join("committed-check")).expect("create planted evidence root");
+    fs::copy(
+        first_root.join("evidence/committed-check.json"),
+        planted.join("committed-check.json"),
+    )
+    .expect("plant mismatched evidence");
+    for artifact in ["stdout.bin", "stderr.bin"] {
+        fs::copy(
+            first_root.join("evidence/committed-check").join(artifact),
+            planted.join("committed-check").join(artifact),
+        )
+        .expect("plant evidence artifact");
+    }
+
+    assert_lifecycle_error(
+        &fixture.closeout_committed(&committed_plan(), &head, &later),
+        "evidence.source_mismatch",
+    );
+}
+
+#[test]
+fn worktree_closeout_still_seals_one_snapshot_only() {
+    let fixture = Fixture::new("worktree-once");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"worktree-once\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    let result = assert_success(&fixture.closeout(&plan), "worktree closeout");
+    assert!(result.get("committed_range").is_none());
+    assert!(result.get("reused_evidence").is_none());
+    let record: Value = serde_json::from_slice(
+        &fs::read(
+            PathBuf::from(result["artifact_root"].as_str().expect("artifact root"))
+                .join("evidence/committed-check.json"),
+        )
+        .expect("read worktree record"),
+    )
+    .expect("parse worktree record");
+    assert!(record.get("source_identity").is_none());
+    let request_sha256 = record["request_sha256"].as_str().expect("request digest");
+    assert_eq!(request_sha256.len(), 64);
+    assert_lifecycle_error(&fixture.closeout(&plan), "evidence.closeout_exists");
 }
 
 #[test]

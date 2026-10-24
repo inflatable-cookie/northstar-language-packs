@@ -1,8 +1,9 @@
 use northstar_rust_quality::{
     AssessmentInput, CompletionInput, DiscoveryRecord, EvidencePlan, ExtensionInput, Scope,
     ScopePlan, ScopePlanInput, StrictProjection, assess_unit, build_scope_plan,
-    collect_audit_evidence, complete_unit, extend_unit, finalize_audit, initialize_audit, inspect,
-    install_receipt, validate_assessment,
+    closeout_committed, collect_audit_evidence, complete_unit, extend_unit,
+    finalize_audit, initialize_audit, inspect, inspect_range, install_receipt,
+    validate_assessment,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -72,11 +73,15 @@ fn run() -> Result<(), String> {
 
     let mut repository = None;
     let mut scope = None;
+    let mut base = None;
+    let mut head = None;
     let mut output = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
             "--repo" => repository = arguments.next().map(PathBuf::from),
             "--scope" => scope = arguments.next(),
+            "--base" => base = arguments.next(),
+            "--head" => head = arguments.next(),
             "--output" => output = arguments.next().map(PathBuf::from),
             _ => return Err(format!("unknown argument `{argument}`\n{}", usage())),
         }
@@ -88,7 +93,22 @@ fn run() -> Result<(), String> {
             .as_deref()
             .ok_or_else(|| "missing --scope".to_owned())?,
     )?;
-    let record = inspect(&repository, scope)?;
+    let record = if scope == Scope::Committed {
+        inspect_range(
+            &repository,
+            base.as_deref()
+                .ok_or_else(|| "scope.range_required: missing --base".to_owned())?,
+            head.as_deref()
+                .ok_or_else(|| "scope.range_required: missing --head".to_owned())?,
+        )?
+    } else {
+        if base.is_some() || head.is_some() {
+            return Err(
+                "scope.range_unexpected: --base and --head require --scope committed".to_owned(),
+            );
+        }
+        inspect(&repository, scope)?
+    };
     let json = serde_json::to_string_pretty(&record).map_err(|error| error.to_string())?;
     if let Some(path) = output {
         if let Some(parent) = path.parent() {
@@ -215,23 +235,42 @@ fn closeout(mut arguments: impl Iterator<Item = String>) -> Result<(), String> {
     let mut repository = None;
     let mut input_path = None;
     let mut output_path = None;
+    let mut base = None;
+    let mut head = None;
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
             "--repo" => repository = arguments.next().map(PathBuf::from),
             "--input" => input_path = arguments.next().map(PathBuf::from),
             "--output" => output_path = arguments.next().map(PathBuf::from),
+            "--base" => base = arguments.next(),
+            "--head" => head = arguments.next(),
             _ => return Err(format!("unknown argument `{argument}`\n{}", usage())),
         }
     }
     let repository = repository.ok_or_else(|| "missing --repo".to_owned())?;
     let input: CloseoutInput = read_json(&input_path.ok_or_else(|| "missing --input".to_owned())?)?;
     let artifact_root = git_metadata_path(&repository, "northstar/rust-quality/closeouts")?;
-    let record = northstar_rust_quality::closeout(
-        &repository,
-        input.applicable_rules,
-        input.evidence_plan,
-        &artifact_root,
-    )?;
+    let record = match (base, head) {
+        (Some(base), Some(head)) => closeout_committed(
+            &repository,
+            input.applicable_rules,
+            &input.evidence_plan,
+            &artifact_root,
+            &base,
+            &head,
+        )?,
+        (None, None) => northstar_rust_quality::closeout(
+            &repository,
+            input.applicable_rules,
+            input.evidence_plan,
+            &artifact_root,
+        )?,
+        _ => {
+            return Err(
+                "scope.range_required: pass both --base and --head, or neither".to_owned(),
+            );
+        }
+    };
     write_json(&record, output_path.as_deref())
 }
 
@@ -326,7 +365,7 @@ fn verify_install(mut arguments: impl Iterator<Item = String>) -> Result<(), Str
 }
 
 fn usage() -> String {
-    "usage: northstar-rust-quality inspect --repo <path> --scope <worktree|repository> [--output <path>] | plan --discovery <record.json> --input <plan-input.json> [--output <plan.json>] | validate-ledger --rules <strict-audit.json> --input <assessment.json> [--output <assessment.json>] | init --repo <path> --discovery <record.json> --plan <plan.json> --rules <strict-audit.json> --profile <rust-quality-profile.json> --deviations <rust-quality-deviations.json> | collect --repo <path> --audit <id> --input <evidence-plan.json> | <assess|extend|complete> --repo <path> --audit <id> --input <record.json> | finalize --repo <path> --audit <id> | closeout --repo <path> --input <closeout.json> [--output <result.json>] | verify-install --source-root <crate-root> [--receipt <path>]".to_owned()
+    "usage: northstar-rust-quality inspect --repo <path> --scope <worktree|repository|committed> [--base <rev> --head <rev>] [--output <path>] | plan --discovery <record.json> --input <plan-input.json> [--output <plan.json>] | validate-ledger --rules <strict-audit.json> --input <assessment.json> [--output <assessment.json>] | init --repo <path> --discovery <record.json> --plan <plan.json> --rules <strict-audit.json> --profile <rust-quality-profile.json> --deviations <rust-quality-deviations.json> | collect --repo <path> --audit <id> --input <evidence-plan.json> | <assess|extend|complete> --repo <path> --audit <id> --input <record.json> | finalize --repo <path> --audit <id> | closeout --repo <path> --input <closeout.json> [--base <rev> --head <rev>] [--output <result.json>] | verify-install --source-root <crate-root> [--receipt <path>]".to_owned()
 }
 
 fn read_json<T: serde::de::DeserializeOwned>(path: &std::path::Path) -> Result<T, String> {

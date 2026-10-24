@@ -1,4 +1,4 @@
-use crate::{Scope, inspect};
+use crate::{DirectSurface, Scope, inspect};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -27,7 +27,7 @@ pub struct EvidencePlan {
     pub requests: Vec<EvidenceRequest>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct EvidenceRequest {
     pub evidence_id: String,
     #[serde(default)]
@@ -40,7 +40,7 @@ pub struct EvidenceRequest {
     pub execution: Execution,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Execution {
     Command {
@@ -77,6 +77,13 @@ pub struct EvidenceRecord {
     pub diagnostics: Vec<Diagnostic>,
     pub raw_artifacts: Vec<Artifact>,
     pub record_sha256: String,
+    /// Exact committed range this record was captured for. Absent for worktree
+    /// and audit records, which bind to their own directory instead.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_identity: Option<String>,
+    /// Digest of the request that produced the record. Reuse requires equality.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_sha256: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -105,6 +112,8 @@ pub struct CollectionReceipt {
     pub record_root: String,
     pub records: Vec<EvidenceRecord>,
     pub limitations: Vec<Limitation>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub reused: Vec<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -118,6 +127,29 @@ pub struct Closeout {
     pub evidence: Vec<CompactEvidence>,
     pub limitations: Vec<Limitation>,
     pub artifact_root: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub committed_range: Option<CloseoutRange>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub reused_evidence: Vec<String>,
+}
+
+/// Committed tranche identity carried by a committed closeout record.
+#[derive(Debug, Serialize)]
+pub struct CloseoutRange {
+    pub base_commit: String,
+    pub head_commit: String,
+    pub checkout_commit: String,
+    pub identity_sha256: String,
+    pub direct_surface: DirectSurface,
+    pub preserved_dirty_files: Vec<String>,
+}
+
+/// Binds collected evidence to an exact committed range and allows reuse of
+/// identical captured requests for that same range.
+#[derive(Clone, Copy, Debug)]
+pub struct EvidenceBinding<'a> {
+    pub source_identity: &'a str,
+    pub reuse: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -167,56 +199,176 @@ fn generic_format() -> String {
 ///
 /// Synthetic `unrun` records cover only applicable classes that remain
 /// unrepresented for the call's resolved unit scope after consulting sealed
-/// on-disk coverage. Existing unit/class evidence stays authoritative.
+/// on-disk coverage. Existing unit/class evidence stays authoritative. With an
+/// [`EvidenceBinding`] and `reuse`, an identical request for the bound source
+/// identity reuses its sealed record instead of executing again; any other
+/// existing record under that identity is a mismatch and fails before a write.
 ///
 /// # Errors
 ///
 /// Returns an error for malformed plans, unsafe paths, duplicate records,
-/// contradictory coverage, or records that cannot be persisted. Validation and
-/// coverage conflicts fail before any new record is written. Command failures
-/// become evidence records.
+/// contradictory coverage, mismatched bound evidence, or records that cannot be
+/// persisted. Validation, coverage and identity conflicts fail before any new
+/// record is written. Command failures become evidence records.
+// The owned plan keeps the audit caller's signature; this operation only reads it.
+#[allow(clippy::needless_pass_by_value)]
 pub fn collect(
     repository_root: &Path,
     record_root: &Path,
     plan: EvidencePlan,
     audit_units: Option<&BTreeSet<String>>,
 ) -> Result<CollectionReceipt, String> {
+    collect_bound(repository_root, record_root, &plan, audit_units, None)
+}
+
+/// Runs [`collect`] with an optional committed-range evidence binding.
+///
+/// # Errors
+///
+/// Returns the same errors as [`collect`], plus a source or request mismatch
+/// when a bound identity already holds evidence that is not this request.
+pub fn collect_bound(
+    repository_root: &Path,
+    record_root: &Path,
+    plan: &EvidencePlan,
+    audit_units: Option<&BTreeSet<String>>,
+    binding: Option<&EvidenceBinding<'_>>,
+) -> Result<CollectionReceipt, String> {
     let mapping = mapping()?;
-    validate_plan(&plan, audit_units)?;
+    validate_plan(plan, audit_units)?;
     fs::create_dir_all(record_root).map_err(|error| format!("evidence.record_create: {error}"))?;
 
     let existing = index_existing_coverage(record_root)?;
-    let scope = resolve_collection_scope(&plan, audit_units)?;
-    let mut planned = BTreeSet::new();
-    let mut request_paths = Vec::new();
-    for request in &plan.requests {
-        let key = coverage_key(request.unit_id.clone(), &request.evidence_class);
-        if let Some(existing_id) = existing.get(&key)
-            && existing_id != &request.evidence_id
-        {
+    verify_binding(&existing, binding)?;
+    let scope = resolve_collection_scope(plan, audit_units)?;
+    let (pending, mut planned) = plan_requests(plan, record_root, &existing, binding)?;
+    let unrun_plans = plan_unrun(plan, &scope, record_root, &existing, &mut planned)?;
+
+    let source_identity = binding.map(|value| value.source_identity);
+    let mut records = Vec::new();
+    let mut reused = Vec::new();
+    for (request, digest, action) in pending {
+        match action {
+            PendingAction::Reuse(record) => {
+                reused.push(record.evidence_id.clone());
+                records.push(*record);
+            }
+            PendingAction::Run(path) => {
+                let record = run_request(
+                    repository_root,
+                    record_root,
+                    request,
+                    &mapping,
+                    source_identity,
+                    &digest,
+                )?;
+                write_new_json(&path, &record)?;
+                records.push(record);
+            }
+        }
+    }
+    for (id, unit_id, class, path) in unrun_plans {
+        let mut record = unrun_record(id, unit_id, &class);
+        record.source_identity = source_identity.map(str::to_owned);
+        seal(&mut record)?;
+        write_new_json(&path, &record)?;
+        records.push(record);
+    }
+    if binding.is_some() {
+        reuse_sealed_coverage(plan, &scope, &existing, &planned, &mut records, &mut reused);
+    }
+    records.sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
+    let limitations = limitations(&records);
+    Ok(CollectionReceipt {
+        schema_version: "northstar.rust-quality.collection.v1",
+        record_root: slash(record_root),
+        records,
+        limitations,
+        reused,
+    })
+}
+
+fn verify_binding(
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    binding: Option<&EvidenceBinding<'_>>,
+) -> Result<(), String> {
+    let Some(binding) = binding else {
+        return Ok(());
+    };
+    for record in existing.values() {
+        if record.source_identity.as_deref() != Some(binding.source_identity) {
             return Err(format!(
-                "evidence.coverage_exists: {}/{} via {existing_id}",
-                request.unit_id.as_deref().unwrap_or("-"),
-                request.evidence_class
+                "evidence.source_mismatch: {} was not captured for {}",
+                record.evidence_id, binding.source_identity
             ));
         }
-        let path = record_root.join(format!("{}.json", request.evidence_id));
-        if path.exists() {
-            return Err(format!("evidence.record_exists: {}", request.evidence_id));
-        }
-        if !planned.insert(key) {
+    }
+    Ok(())
+}
+
+fn plan_requests(
+    plan: &EvidencePlan,
+    record_root: &Path,
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    binding: Option<&EvidenceBinding<'_>>,
+) -> Result<(Vec<Pending>, BTreeSet<CoverageKey>), String> {
+    let mut planned = BTreeSet::new();
+    let mut pending = Vec::new();
+    for request in &plan.requests {
+        let key = coverage_key(request.unit_id.clone(), &request.evidence_class);
+        if !planned.insert(key.clone()) {
             return Err(format!(
                 "evidence.coverage_duplicate: {}/{}",
                 request.unit_id.as_deref().unwrap_or("-"),
                 request.evidence_class
             ));
         }
-        request_paths.push(path);
+        let digest = request_digest(request)?;
+        let path = record_root.join(format!("{}.json", request.evidence_id));
+        if let Some(record) = existing.get(&key) {
+            if let Some(binding) = binding
+                && binding.reuse
+            {
+                if record.request_sha256.as_deref() != Some(digest.as_str()) {
+                    return Err(format!(
+                        "evidence.request_mismatch: {} does not match the captured request",
+                        record.evidence_id
+                    ));
+                }
+                pending.push((
+                    request.clone(),
+                    digest,
+                    PendingAction::Reuse(Box::new(record.clone())),
+                ));
+                continue;
+            }
+            if record.evidence_id != request.evidence_id {
+                return Err(format!(
+                    "evidence.coverage_exists: {}/{} via {}",
+                    request.unit_id.as_deref().unwrap_or("-"),
+                    request.evidence_class,
+                    record.evidence_id
+                ));
+            }
+        }
+        if path.exists() {
+            return Err(format!("evidence.record_exists: {}", request.evidence_id));
+        }
+        pending.push((request.clone(), digest, PendingAction::Run(path)));
     }
+    Ok((pending, planned))
+}
 
+fn plan_unrun(
+    plan: &EvidencePlan,
+    scope: &[Option<String>],
+    record_root: &Path,
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    planned: &mut BTreeSet<CoverageKey>,
+  ) -> Result<Vec<UnrunPlan>, String> {
     let mut unrun_plans = Vec::new();
     for class in &plan.applicable_classes {
-        for unit_id in &scope {
+        for unit_id in scope {
             let key = coverage_key(unit_id.clone(), class);
             if planned.contains(&key) || existing.contains_key(&key) {
                 continue;
@@ -233,27 +385,40 @@ pub fn collect(
             planned.insert(key);
         }
     }
+    Ok(unrun_plans)
+}
 
-    let mut records = Vec::new();
-    for (request, path) in plan.requests.into_iter().zip(request_paths) {
-        let record = run_request(repository_root, record_root, request, &mapping)?;
-        write_new_json(&path, &record)?;
-        records.push(record);
+/// Adds sealed coverage of applicable classes that a bound tranche already
+/// holds, so a repeat reports the same evidence as its first capture instead of
+/// only the requests it happened to name again.
+fn reuse_sealed_coverage(
+    plan: &EvidencePlan,
+    scope: &[Option<String>],
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    planned: &BTreeSet<CoverageKey>,
+    records: &mut Vec<EvidenceRecord>,
+    reused: &mut Vec<String>,
+) {
+    for class in &plan.applicable_classes {
+        for unit_id in scope {
+            let key = coverage_key(unit_id.clone(), class);
+            if planned.contains(&key) {
+                continue;
+            }
+            if let Some(record) = existing.get(&key) {
+                reused.push(record.evidence_id.clone());
+                records.push(record.clone());
+            }
+        }
     }
-    for (id, unit_id, class, path) in unrun_plans {
-        let mut record = unrun_record(id, unit_id, &class);
-        seal(&mut record)?;
-        write_new_json(&path, &record)?;
-        records.push(record);
-    }
-    records.sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
-    let limitations = limitations(&records);
-    Ok(CollectionReceipt {
-        schema_version: "northstar.rust-quality.collection.v1",
-        record_root: slash(record_root),
-        records,
-        limitations,
-    })
+}
+
+type Pending = (EvidenceRequest, String, PendingAction);
+type UnrunPlan = (String, Option<String>, String, PathBuf);
+
+enum PendingAction {
+    Run(PathBuf),
+    Reuse(Box<EvidenceRecord>),
 }
 
 type CoverageKey = (Option<String>, String);
@@ -262,7 +427,7 @@ fn coverage_key(unit_id: Option<String>, class: &str) -> CoverageKey {
     (unit_id, class.to_owned())
 }
 
-fn index_existing_coverage(record_root: &Path) -> Result<BTreeMap<CoverageKey, String>, String> {
+fn index_existing_coverage(record_root: &Path) -> Result<BTreeMap<CoverageKey, EvidenceRecord>, String> {
     let mut coverage = BTreeMap::new();
     let entries = match fs::read_dir(record_root) {
         Ok(entries) => entries,
@@ -277,11 +442,12 @@ fn index_existing_coverage(record_root: &Path) -> Result<BTreeMap<CoverageKey, S
         }
         let record = read_verified(&path)?;
         let key = coverage_key(record.unit_id.clone(), &record.evidence_class);
-        if let Some(prior) = coverage.insert(key, record.evidence_id.clone()) {
+        if let Some(prior) = coverage.insert(key, record.clone()) {
             return Err(format!(
-                "evidence.coverage_ambiguous: {}/{} via {prior} and {}",
+                "evidence.coverage_ambiguous: {}/{} via {} and {}",
                 record.unit_id.as_deref().unwrap_or("-"),
                 record.evidence_class,
+                prior.evidence_id,
                 record.evidence_id
             ));
         }
@@ -339,6 +505,8 @@ fn unrun_record(evidence_id: String, unit_id: Option<String>, class: &str) -> Ev
         }],
         raw_artifacts: Vec::new(),
         record_sha256: String::new(),
+        source_identity: None,
+        request_sha256: None,
     }
 }
 
@@ -362,17 +530,101 @@ pub fn closeout(
             discovery.snapshot_sha256
         ));
     }
+    let changed_files = discovery
+        .dirty_files
+        .iter()
+        .map(|item| item.path.clone())
+        .collect();
     let receipt = collect(&root, &root_for_snapshot.join("evidence"), plan, None)?;
-    let evidence = receipt.records.iter().map(compact).collect();
+    Ok(finish_closeout(
+        discovery,
+        changed_files,
+        applicable_rules,
+        receipt,
+        slash(&root_for_snapshot),
+        None,
+    ))
+}
+
+/// Runs a compact closeout for an explicit committed range.
+///
+/// Evidence is bound to the exact `base..head` identity, stored under that
+/// identity, and reused verbatim when the same request was already captured for
+/// it. Anything else already stored for the identity fails closed.
+///
+/// # Errors
+///
+/// Returns an error for an invalid, unbounded, empty or anchorless range, a
+/// mismatched checkout, a dirty committed path, or evidence bound to another
+/// identity.
+pub fn closeout_committed(
+    repository: &Path,
+    applicable_rules: Vec<String>,
+    plan: &EvidencePlan,
+    artifact_root: &Path,
+    base: &str,
+    head: &str,
+) -> Result<Closeout, String> {
+    let discovery = crate::inspect_range(repository, base, head)?;
+    let range = discovery
+        .committed_range
+        .clone()
+        .ok_or_else(|| "scope.range_missing: discovery recorded no committed range".to_owned())?;
+    let root = PathBuf::from(&discovery.repository_root);
+    let record_root = artifact_root.join(format!("committed-{}", range.identity_sha256));
+    let source_identity = range.source_identity();
+    let binding = EvidenceBinding {
+        source_identity: &source_identity,
+        reuse: true,
+    };
+    let receipt = collect_bound(
+        &root,
+        &record_root.join("evidence"),
+        plan,
+        None,
+        Some(&binding),
+    )?;
+    let changed_files = range.changed_paths();
+    let closeout_range = CloseoutRange {
+        base_commit: range.base_commit,
+        head_commit: range.head_commit,
+        checkout_commit: range.checkout_commit,
+        identity_sha256: range.identity_sha256,
+        direct_surface: range.direct_surface,
+        preserved_dirty_files: discovery
+            .dirty_files
+            .iter()
+            .map(|item| item.path.clone())
+            .collect(),
+    };
+    let reused_evidence = receipt.reused.clone();
     Ok(Closeout {
+        reused_evidence,
+        ..finish_closeout(
+            discovery,
+            changed_files,
+            applicable_rules,
+            receipt,
+            slash(&record_root),
+            Some(closeout_range),
+        )
+    })
+}
+
+fn finish_closeout(
+    discovery: crate::DiscoveryRecord,
+    changed_files: Vec<String>,
+    applicable_rules: Vec<String>,
+    receipt: CollectionReceipt,
+    artifact_root: String,
+    committed_range: Option<CloseoutRange>,
+) -> Closeout {
+    let evidence = receipt.records.iter().map(compact).collect();
+    Closeout {
         schema_version: "northstar.rust-quality.closeout.v1",
         repository_root: discovery.repository_root,
         snapshot_sha256: discovery.snapshot_sha256,
-        changed_files: discovery
-            .dirty_files
-            .into_iter()
-            .map(|item| item.path)
-            .collect(),
+        changed_files,
         rust_anchors: discovery
             .rust_anchors
             .into_iter()
@@ -381,8 +633,10 @@ pub fn closeout(
         applicable_rules,
         evidence,
         limitations: receipt.limitations,
-        artifact_root: slash(&root_for_snapshot),
-    })
+        artifact_root,
+        committed_range,
+        reused_evidence: Vec::new(),
+    }
 }
 
 pub(crate) fn read_verified(path: &Path) -> Result<EvidenceRecord, String> {
@@ -489,11 +743,52 @@ fn validate_plan(
     Ok(())
 }
 
+fn request_digest(request: &EvidenceRequest) -> Result<String, String> {
+    let execution = match &request.execution {
+        Execution::Command {
+            program,
+            args,
+            format,
+        } => serde_json::json!({
+            "kind": "command",
+            "program": program,
+            "args": args,
+            "format": format,
+        }),
+        Execution::Unavailable {
+            failure_stage,
+            diagnostics,
+        } => serde_json::json!({
+            "kind": "unavailable",
+            "failure_stage": failure_stage,
+            "diagnostics": diagnostics,
+        }),
+        Execution::Unrun { reason } => serde_json::json!({
+            "kind": "unrun",
+            "reason": reason,
+        }),
+    };
+    let canonical = serde_json::json!({
+        "schema_version": "northstar.rust-quality.evidence-request.v1",
+        "evidence_id": request.evidence_id,
+        "evidence_class": request.evidence_class,
+        "selector": request.selector,
+        "origin": request.origin,
+        "package_cwd": request.package_cwd,
+        "environment": request.environment,
+        "execution": execution,
+    });
+    let bytes = serde_json::to_vec(&canonical).map_err(|error| error.to_string())?;
+    Ok(digest(&bytes))
+}
+
 fn run_request(
     repository_root: &Path,
     record_root: &Path,
     request: EvidenceRequest,
     mapping: &Mapping,
+    source_identity: Option<&str>,
+    request_sha256: &str,
 ) -> Result<EvidenceRecord, String> {
     let package_cwd = repository_root.join(&request.package_cwd);
     if !package_cwd.is_dir() {
@@ -540,6 +835,8 @@ fn run_request(
         diagnostics: outcome.diagnostics,
         raw_artifacts: outcome.artifacts,
         record_sha256: String::new(),
+        source_identity: source_identity.map(str::to_owned),
+        request_sha256: Some(request_sha256.to_owned()),
     };
     seal(&mut record)?;
     Ok(record)
@@ -931,8 +1228,8 @@ fn slash(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        EvidencePlan, EvidenceRequest, Execution, collect, mapping, parse_diagnostics, seal,
-        unrun_record, write_new_json,
+        EvidencePlan, EvidenceRequest, Execution, collect, mapping, parse_diagnostics,
+        read_verified, seal, unrun_record, write_new_json,
     };
     use std::collections::BTreeSet;
     use std::fs;
@@ -984,6 +1281,32 @@ mod tests {
         assert_eq!(diagnostics.len(), 1);
         assert_eq!(diagnostics[0].level, "warning");
         assert!(diagnostics[0].message.contains("dead suppression"));
+    }
+
+    #[test]
+    fn records_without_a_committed_binding_keep_the_legacy_shape() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "northstar-legacy-record-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("record root");
+        let path = root.join("legacy.json");
+        let mut record = unrun_record("legacy".to_owned(), None, "test");
+        seal(&mut record).expect("seal");
+        write_new_json(&path, &record).expect("write record");
+
+        let payload = fs::read_to_string(&path).expect("read record");
+        assert!(!payload.contains("source_identity"));
+        assert!(!payload.contains("request_sha256"));
+
+        let verified = read_verified(&path).expect("legacy record verifies");
+        assert!(verified.source_identity.is_none());
+        assert!(verified.request_sha256.is_none());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

@@ -68,6 +68,39 @@ record.
 Raw artifacts remain outside the worktree under Git metadata. This operation
 does not initialize or load an audit ledger.
 
+### Committed tranche
+
+A clean checkout proves its committed bytes, never a worktree snapshot. Name
+the tranche explicitly:
+
+```text
+<tool> inspect --repo <repo> --scope committed --base <rev> --head <rev>
+<tool> closeout --repo <repo> --input <closeout-input.json> --base <rev> --head <rev>
+```
+
+Both revisions resolve to exact commit identities. The tool rejects an invalid
+revision, a base that is not an ancestor of head (`scope.range_unbounded`), an
+empty or path-less range, a range without a Rust anchor, a checkout that is not
+the range head, and any committed path that is dirty in the worktree. It never
+falls back to repository scope. Dirty files outside the range are preserved and
+reported as `preserved_dirty_files`; they are not part of the tranche and are
+not replaced by it.
+
+The result records `base_commit`, `head_commit`, `checkout_commit`,
+`identity_sha256`, and the `direct_surface` (Cargo packages and workspace roots
+the range corrects) beside the changed paths and anchors. Evidence is stored
+under that identity and stamped with it, so a record cannot be read as proof of
+another range.
+
+Repeating the same request for the same identity reuses the sealed capture and
+reports it in `reused_evidence` instead of running it again. Any other stored
+record under that identity fails closed: a different range is
+`evidence.source_mismatch`, and a different selector, program, arguments or
+environment is `evidence.request_mismatch`. Compatible captured validation is
+reused only when the request is identical; unrelated passing validation is
+never substituted for the named tranche. A worktree closeout still seals one
+snapshot only and rejects a repeat.
+
 ## Exact-forwarder candidate scan
 
 For `RUST-SLOP-001`, use the verified audit-only scanner from

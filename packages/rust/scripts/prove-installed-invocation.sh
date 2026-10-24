@@ -273,10 +273,10 @@ SOURCE_MAP = {
     'skills/northstar/references/language-quality/rust/authoring/rust-unsafe-001.json': ('references/language-quality/rust/authoring/rust-unsafe-001.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/catalogue.json': ('references/language-quality/rust/catalogue.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/catalogue.schema.json': ('references/language-quality/rust/catalogue.schema.json', 'byte_exact'),
-    'skills/northstar/references/language-quality/rust/closeout.schema.json': ('references/language-quality/rust/closeout.schema.json', 'byte_exact'),
+    'skills/northstar/references/language-quality/rust/closeout.schema.json': ('references/language-quality/rust/closeout.schema.json', 'package_adapted'),
     'skills/northstar/references/language-quality/rust/detector-candidates.json': ('references/language-quality/rust/detector-candidates.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/detector-candidates.schema.json': ('references/language-quality/rust/detector-candidates.schema.json', 'byte_exact'),
-    'skills/northstar/references/language-quality/rust/evidence-collection.md': ('references/language-quality/rust/evidence-collection.md', 'byte_exact'),
+    'skills/northstar/references/language-quality/rust/evidence-collection.md': ('references/language-quality/rust/evidence-collection.md', 'package_adapted'),
     'skills/northstar/references/language-quality/rust/profile.schema.json': ('references/language-quality/rust/profile.schema.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/strict-audit.json': ('references/language-quality/rust/strict-audit.json', 'byte_exact'),
     'skills/northstar/references/language-quality/rust/strict-authoring.json': ('references/language-quality/rust/strict-authoring.json', 'byte_exact'),
@@ -289,12 +289,12 @@ SOURCE_MAP = {
     'skills/northstar/tools/rust-quality/Cargo.toml': ('tools/rust-quality/Cargo.toml', 'byte_exact'),
     'skills/northstar/tools/rust-quality/assets/diagnostic-mapping.json': ('tools/rust-quality/assets/diagnostic-mapping.json', 'byte_exact'),
     'skills/northstar/tools/rust-quality/build.rs': ('tools/rust-quality/build.rs', 'byte_exact'),
-    'skills/northstar/tools/rust-quality/src/evidence.rs': ('tools/rust-quality/src/evidence.rs', 'byte_exact'),
+    'skills/northstar/tools/rust-quality/src/evidence.rs': ('tools/rust-quality/src/evidence.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/src/ledger.rs': ('tools/rust-quality/src/ledger.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/src/lib.rs': ('tools/rust-quality/src/lib.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/src/lifecycle.rs': ('tools/rust-quality/src/lifecycle.rs', 'byte_exact'),
-    'skills/northstar/tools/rust-quality/src/main.rs': ('tools/rust-quality/src/main.rs', 'byte_exact'),
-    'skills/northstar/tools/rust-quality/src/plan.rs': ('tools/rust-quality/src/plan.rs', 'byte_exact'),
+    'skills/northstar/tools/rust-quality/src/main.rs': ('tools/rust-quality/src/main.rs', 'package_adapted'),
+    'skills/northstar/tools/rust-quality/src/plan.rs': ('tools/rust-quality/src/plan.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/tests/cli.rs': ('tools/rust-quality/tests/cli.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/tests/detectors.rs': ('tools/rust-quality/tests/detectors.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.lock': ('tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.lock', 'byte_exact'),
@@ -317,14 +317,19 @@ ADAPTED_EXPECTED = {
     'SKILL.md': 'sha256:83afd4b0c0d776753ea47affa164d7d3efa95dfa33925c53b3b379b9401d982c',
     'references/language-quality/rust/tool-bootstrap.md': 'sha256:a8d89c616d41383e409588831c30724f42f9e3cd6ccc0e7c0216bf3ff9b54e4c',
     'references/language-quality/rust/audit-recording.md': 'sha256:69fc48ba6838447083f1d0e4661707a081867bbb8e64f9ad2b09c607b545e9de',
+    'references/language-quality/rust/closeout.schema.json': 'sha256:7aca9d6883fdc3affc177a04ca46cb054c1233277946caf89c823e057c06a16d',
+    'references/language-quality/rust/evidence-collection.md': 'sha256:c647d0d05d2c3b6790ad74f8d2cdafac17d0b7c27449df5b70718a84fec0f18f',
     'references/modes/rust-quality-audit.md': 'sha256:6be8d206303f47de9b7ccf5983238cd7bfd364ea6859c87c545f1e4527ba5f62',
-    'references/modes/rust-quality-authoring.md': 'sha256:6d22efb5a3a3449a04e68a8ab6f7dc58c82e740ad7955283a245f88e53548aba',
+    'references/modes/rust-quality-authoring.md': 'sha256:ce64e409bb72faff04286d3ccc4b83c0ac7a6d43c3dba68c47528a508984f92c',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
     'scripts/check-rust-quality.rhai': 'sha256:8cec2154a31ef425b9617f0f1e9532c313eb0630dcea6b12322705b8bf1c5529',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
-    'tools/rust-quality/src/lib.rs': 'sha256:e595657322fbc2a1cdbbfb2334868ef08ed195934529fb58e8c008bdd4d141fc',
-    'tools/rust-quality/tests/cli.rs': 'sha256:a554bbd06ca550f9e41ef3b137f3cbbeb86030f3052176ac91f7e30228c5e052',
+    'tools/rust-quality/src/evidence.rs': 'sha256:99819db2391e69b2805c34dc8ddbd21dfccde482ad97cb01a40957b2db2a57a0',
+    'tools/rust-quality/src/lib.rs': 'sha256:c6ffcc73e5c173685e3a112a7a3f23e39aa6f0d183ebb995b4d68691c06b613f',
+    'tools/rust-quality/src/main.rs': 'sha256:ea9c2a548f057e5e7e4cdfb0e072aaa1c77a590ffc01bcdc9ce7718bf8a559b9',
+    'tools/rust-quality/src/plan.rs': 'sha256:153e2185b330c68deb0cc7ca4e5e3fda7644ba07693d14f97f14a20fb86743b9',
+    'tools/rust-quality/tests/cli.rs': 'sha256:f7b1fc5d96b0823b2cd6c6b3e8e861da2d3665d9a7f04ae684a46bb3dd3c2857',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -349,12 +354,12 @@ def verify_source_parity(pkg_root):
 
 verify_source_parity(root)
 
-assert counts['byte_exact'] == 39, f'Expected 39 byte_exact, got {counts[\"byte_exact\"]}'
+assert counts['byte_exact'] == 34, f'Expected 34 byte_exact, got {counts[\"byte_exact\"]}'
 assert counts['eof_newline_normalized'] == 4, f'Expected 4 eof_newline_normalized, got {counts[\"eof_newline_normalized\"]}'
-assert counts['package_adapted'] == 11, f'Expected 11 package_adapted, got {counts[\"package_adapted\"]}'
+assert counts['package_adapted'] == 16, f'Expected 16 package_adapted, got {counts[\"package_adapted\"]}'
 
 # Negative 1: unrecorded rewrite in a byte_exact file fails closed
-tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/main.rs')
+tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/ledger.rs')
 with open(tampered_byte_exact, 'rb') as f:
     orig_b = f.read()
 try:
@@ -717,8 +722,8 @@ if [ -e "$installed/tools/rust-quality/target" ]; then
     echo "[rust-quality:installed-route] cargo wrote target/ into the installed package" >&2
     exit 1
 fi
-require_file_contains "$transcripts/cargo-test.txt" "4 passed" "unit test count"
-require_file_contains "$transcripts/cargo-test.txt" "25 passed" "cli test count"
+require_file_contains "$transcripts/cargo-test.txt" "5 passed" "unit test count"
+require_file_contains "$transcripts/cargo-test.txt" "32 passed" "cli test count"
 require_file_contains "$transcripts/cargo-test.txt" "2 passed" "detectors test count"
 
 # Probe binary installation and source verification
@@ -733,8 +738,8 @@ then
 fi
 require_file_contains "$receipt_path" "\"current\": true" "probe receipt current"
 require_file_contains "$receipt_path" "\"schema_version\": \"northstar.rust-quality.install.v1\"" "probe receipt schema"
-require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"fd8d449f604ea9f253cfcb81f6d756bfd00566be62ffdcc43114699aeea7dc64\"" "probe embedded payload hash"
-require_file_contains "$receipt_path" "\"source_payload_sha256\": \"fd8d449f604ea9f253cfcb81f6d756bfd00566be62ffdcc43114699aeea7dc64\"" "probe source payload hash"
+require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"e9cd4d97404cc76ff68ab548ac534686e0066d2a2b489cbdff86fe6efba257ec\"" "probe embedded payload hash"
+require_file_contains "$receipt_path" "\"source_payload_sha256\": \"e9cd4d97404cc76ff68ab548ac534686e0066d2a2b489cbdff86fe6efba257ec\"" "probe source payload hash"
 
 # Tamper negatives: mutating source must cause verify-install to fail closed
 tampered="$work/tampered-tool"
