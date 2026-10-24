@@ -1,3 +1,4 @@
 .agents.local.env
 .effigy/
 target/
+/packages/rust/tools/rust-quality/target

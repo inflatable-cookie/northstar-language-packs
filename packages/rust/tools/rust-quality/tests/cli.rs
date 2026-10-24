@@ -1557,6 +1557,11 @@ fn committed_closeout_binds_the_range_and_preserves_dirty_state() {
     );
     assert_eq!(result["evidence"][0]["status"], "passed");
     assert!(result.get("reused_evidence").is_none());
+    assert_eq!(result["attempt"], 1);
+    assert_eq!(
+        result["source_identity"],
+        serde_json::json!(format!("committed:{base}:{head}"))
+    );
     assert!(
         result["artifact_root"]
             .as_str()
@@ -1701,9 +1706,14 @@ fn rejects_evidence_captured_for_another_committed_range() {
         .expect("identity");
 
     let first_root = PathBuf::from(first["artifact_root"].as_str().expect("artifact root"));
-    let closeouts = first_root.parent().expect("closeouts root").to_path_buf();
+    let closeouts = first_root
+        .parent()
+        .and_then(Path::parent)
+        .expect("closeouts root")
+        .to_path_buf();
     let planted = closeouts
         .join(format!("committed-{identity}"))
+        .join("attempt-1")
         .join("evidence");
     fs::create_dir_all(planted.join("committed-check")).expect("create planted evidence root");
     fs::copy(
@@ -1726,7 +1736,7 @@ fn rejects_evidence_captured_for_another_committed_range() {
 }
 
 #[test]
-fn worktree_closeout_still_seals_one_snapshot_only() {
+fn worktree_closeout_binds_source_bytes_and_reuses_one_attempt() {
     let fixture = Fixture::new("worktree-once");
     fixture.write(
         "Cargo.toml",
@@ -1735,23 +1745,388 @@ fn worktree_closeout_still_seals_one_snapshot_only() {
     fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
     fixture.commit();
     fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let marker = fixture.root.join(".git/worktree-runs");
     let mut plan = committed_plan();
     plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": "sh",
+        "args": ["-c", "printf 'run\\n' >> \"$1\"", "sh", marker.to_string_lossy()]
+    });
     let result = assert_success(&fixture.closeout(&plan), "worktree closeout");
     assert!(result.get("committed_range").is_none());
-    assert!(result.get("reused_evidence").is_none());
+    assert_eq!(result["attempt"], 1);
+    let source_identity = result["source_identity"]
+        .as_str()
+        .expect("source identity");
+    assert!(
+        source_identity.starts_with("worktree:sha256:"),
+        "source identity names the bytes: {source_identity}"
+    );
+
+    let artifact_root = PathBuf::from(result["artifact_root"].as_str().expect("artifact root"));
+    assert!(
+        artifact_root.ends_with("attempt-1"),
+        "evidence lives in an attempt: {}",
+        artifact_root.display()
+    );
+    let source_root = artifact_root.parent().expect("source root");
+    assert!(
+        source_root
+            .file_name()
+            .expect("source directory")
+            .to_string_lossy()
+            .starts_with("worktree-"),
+        "evidence is stored under its content identity: {}",
+        source_root.display()
+    );
+
     let record: Value = serde_json::from_slice(
-        &fs::read(
-            PathBuf::from(result["artifact_root"].as_str().expect("artifact root"))
-                .join("evidence/committed-check.json"),
-        )
-        .expect("read worktree record"),
+        &fs::read(artifact_root.join("evidence/committed-check.json"))
+            .expect("read worktree record"),
     )
     .expect("parse worktree record");
-    assert!(record.get("source_identity").is_none());
+    assert_eq!(record["source_identity"], source_identity);
     let request_sha256 = record["request_sha256"].as_str().expect("request digest");
     assert_eq!(request_sha256.len(), 64);
-    assert_lifecycle_error(&fixture.closeout(&plan), "evidence.closeout_exists");
+    assert_eq!(fs::read_to_string(&marker).expect("run marker"), "run\n");
+
+    // An unchanged source and plan reuse the sealed attempt instead of rewriting it.
+    let repeat = assert_success(&fixture.closeout(&plan), "repeat worktree closeout");
+    assert_eq!(repeat["attempt"], 1);
+    assert_eq!(repeat["artifact_root"], result["artifact_root"]);
+    assert_eq!(repeat["evidence"], result["evidence"]);
+    assert_eq!(
+        repeat["reused_evidence"],
+        serde_json::json!(["committed-check"])
+    );
+    assert_eq!(
+        fs::read_to_string(&marker).expect("run marker"),
+        "run\n",
+        "reuse never reruns the sealed capture"
+    );
+}
+
+#[test]
+fn content_only_change_produces_a_distinct_source_identity() {
+    let fixture = Fixture::new("content-identity");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"content-identity\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    let first = assert_success(&fixture.closeout(&plan), "first content closeout");
+    let first_discovery = fixture.inspect();
+    assert_eq!(
+        first_discovery["dirty_files"],
+        serde_json::json!([{"path": "src/lib.rs", "status": " M"}])
+    );
+
+    // Same path, same status, different bytes: a different source, not a repeat.
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 43 }\n");
+    let second_discovery = fixture.inspect();
+    assert_eq!(second_discovery["dirty_files"], first_discovery["dirty_files"]);
+    assert_ne!(
+        second_discovery["source_identity"],
+        first_discovery["source_identity"]
+    );
+    assert_ne!(
+        second_discovery["snapshot_sha256"],
+        first_discovery["snapshot_sha256"]
+    );
+    let second = assert_success(&fixture.closeout(&plan), "second content closeout");
+    assert_eq!(
+        second["attempt"], 1,
+        "a content-only change starts its own attempt history"
+    );
+    assert_ne!(second["artifact_root"], first["artifact_root"]);
+    assert_eq!(
+        second["source_identity"],
+        second_discovery["source_identity"]
+    );
+}
+
+#[test]
+fn staged_and_working_bytes_bind_the_source_identity() {
+    let fixture = Fixture::new("staged-bytes");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"staged-bytes\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    fixture.git(&["add", "src/lib.rs"]);
+    let staged = fixture.inspect();
+    assert_eq!(
+        staged["dirty_files"],
+        serde_json::json!([{"path": "src/lib.rs", "status": "M "}])
+    );
+
+    // Working bytes change while the staged bytes stay as they were.
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 43 }\n");
+    let mixed = fixture.inspect();
+    assert_eq!(
+        mixed["dirty_files"],
+        serde_json::json!([{"path": "src/lib.rs", "status": "MM"}])
+    );
+    assert_ne!(mixed["source_identity"], staged["source_identity"]);
+
+    // Only the index changes: identical path and status, different content.
+    fixture.git(&["add", "src/lib.rs"]);
+    let restaged = fixture.inspect();
+    assert_eq!(restaged["dirty_files"], staged["dirty_files"]);
+    assert_ne!(
+        restaged["source_identity"], staged["source_identity"],
+        "content under identical path and status must separate sources"
+    );
+    assert_ne!(
+        restaged["source_identity"], mixed["source_identity"],
+        "the staged index state is part of the tranche"
+    );
+}
+
+#[test]
+fn untracked_and_deleted_paths_bind_the_source_identity() {
+    let fixture = Fixture::new("deleted-bytes");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"deleted-bytes\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.write("src/extra.rs", "pub fn extra() -> u8 { 1 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let modified = fixture.inspect();
+
+    // A deleted Rust anchor is part of the source, and reading it is not an error.
+    fs::remove_file(fixture.root.join("src/extra.rs")).expect("delete anchor");
+    let deleted = fixture.inspect();
+    assert_eq!(
+        deleted["dirty_files"],
+        serde_json::json!([
+            {"path": "src/extra.rs", "status": " D"},
+            {"path": "src/lib.rs", "status": " M"}
+        ])
+    );
+    assert_ne!(deleted["source_identity"], modified["source_identity"]);
+
+    // Untracked bytes bind too.
+    fixture.write("src/untracked.rs", "pub fn untracked() -> u8 { 1 }\n");
+    let untracked = fixture.inspect();
+    assert_ne!(untracked["source_identity"], deleted["source_identity"]);
+    fixture.write("src/untracked.rs", "pub fn untracked() -> u8 { 2 }\n");
+    let changed_untracked = fixture.inspect();
+    assert_ne!(
+        changed_untracked["source_identity"],
+        untracked["source_identity"]
+    );
+
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    let result = assert_success(&fixture.closeout(&plan), "closeout with a deletion");
+    assert_eq!(
+        result["changed_files"],
+        serde_json::json!(["src/extra.rs", "src/lib.rs", "src/untracked.rs"])
+    );
+    assert_eq!(result["evidence"][0]["status"], "passed");
+    assert_eq!(
+        result["source_identity"],
+        changed_untracked["source_identity"]
+    );
+}
+
+#[test]
+fn retries_a_failed_capture_in_a_new_attempt() {
+    let fixture = Fixture::new("retry-failed");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"retry-failed\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": "sh",
+        "args": ["-c", "exit 9"]
+    });
+
+    let first = assert_success(&fixture.closeout(&plan), "failing closeout");
+    assert_eq!(first["attempt"], 1);
+    assert_eq!(first["evidence"][0]["status"], "failed");
+    let first_root = PathBuf::from(first["artifact_root"].as_str().expect("artifact root"));
+    let first_record =
+        fs::read(first_root.join("evidence/committed-check.json")).expect("first record");
+
+    // The same failed request is retried as a fresh attempt, never an overwrite.
+    let second = assert_success(&fixture.closeout(&plan), "retried failing closeout");
+    assert_eq!(second["attempt"], 2);
+    assert_ne!(second["artifact_root"], first["artifact_root"]);
+    assert_eq!(second["evidence"][0]["status"], "failed");
+    assert_eq!(
+        fs::read(first_root.join("evidence/committed-check.json")).expect("first record"),
+        first_record,
+        "earlier failure evidence is immutable"
+    );
+
+    // A corrected selector replaces a failed capture in a fresh attempt.
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": "sh",
+        "args": ["-c", "exit 0"]
+    });
+    let corrected = assert_success(&fixture.closeout(&plan), "corrected closeout");
+    assert_eq!(corrected["attempt"], 3);
+    assert_eq!(corrected["evidence"][0]["status"], "passed");
+
+    // The passing capture stays authoritative and is reused, not replaced.
+    let repeat = assert_success(&fixture.closeout(&plan), "repeat corrected closeout");
+    assert_eq!(repeat["attempt"], 3);
+    assert_eq!(
+        repeat["reused_evidence"],
+        serde_json::json!(["committed-check"])
+    );
+}
+
+#[test]
+fn retries_a_startup_failure_after_the_collector_is_corrected() {
+    let fixture = Fixture::new("retry-startup");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"retry-startup\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let collector = fixture.root.join(".git/collector.sh");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": collector.to_string_lossy(),
+        "args": []
+    });
+    let status_before = fixture.status();
+
+    let first = assert_success(&fixture.closeout(&plan), "startup failure closeout");
+    assert_eq!(first["attempt"], 1);
+    assert_eq!(first["evidence"][0]["status"], "unavailable");
+    let first_root = PathBuf::from(first["artifact_root"].as_str().expect("artifact root"));
+    let record: Value = serde_json::from_slice(
+        &fs::read(first_root.join("evidence/committed-check.json")).expect("startup record"),
+    )
+    .expect("parse startup record");
+    assert_eq!(record["failure_stage"], "startup");
+
+    // Correct only the collector. Source bytes and Git status stay identical.
+    fs::write(&collector, "#!/bin/sh\nexit 0\n").expect("write collector");
+    command(
+        &fixture.root,
+        "chmod",
+        &["+x", collector.to_str().expect("collector path")],
+    );
+    assert_eq!(fixture.status(), status_before);
+
+    let second = assert_success(&fixture.closeout(&plan), "retried startup closeout");
+    assert_eq!(second["attempt"], 2);
+    assert_eq!(second["source_identity"], first["source_identity"]);
+    assert_eq!(second["evidence"][0]["status"], "passed");
+}
+
+#[test]
+fn rejects_evidence_captured_for_another_source() {
+    let fixture = Fixture::new("foreign-source");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"foreign-source\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    let first = assert_success(&fixture.closeout(&plan), "first source closeout");
+
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 43 }\n");
+    let second = assert_success(&fixture.closeout(&plan), "second source closeout");
+    assert_ne!(second["source_identity"], first["source_identity"]);
+
+    // Evidence from the other source cannot be read as this source's capture.
+    let first_root = PathBuf::from(first["artifact_root"].as_str().expect("artifact root"));
+    let second_root = PathBuf::from(second["artifact_root"].as_str().expect("artifact root"));
+    fs::copy(
+        first_root.join("evidence/committed-check.json"),
+        second_root.join("evidence/committed-check.json"),
+    )
+    .expect("plant foreign evidence");
+    for artifact in ["stdout.bin", "stderr.bin"] {
+        fs::copy(
+            first_root.join("evidence/committed-check").join(artifact),
+            second_root.join("evidence/committed-check").join(artifact),
+        )
+        .expect("plant foreign artifact");
+    }
+    assert_lifecycle_error(&fixture.closeout(&plan), "evidence.source_mismatch");
+}
+
+#[test]
+fn retries_a_collector_failure_after_the_plan_is_corrected() {
+    let fixture = Fixture::new("retry-collector");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"retry-collector\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!("missing-directory");
+    let status_before = fixture.status();
+    assert_lifecycle_error(
+        &fixture.closeout(&plan),
+        "evidence.package_cwd_missing",
+    );
+
+    // Correct only the plan; the source bytes and Git status are unchanged.
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    assert_eq!(fixture.status(), status_before);
+    let corrected = assert_success(&fixture.closeout(&plan), "corrected collector closeout");
+    assert_eq!(corrected["attempt"], 2);
+    assert_eq!(corrected["evidence"][0]["status"], "passed");
+}
+
+#[test]
+fn rejects_a_tampered_attempt_history() {
+    let fixture = Fixture::new("attempt-history");
+    fixture.write(
+        "Cargo.toml",
+        "[package]\nname = \"attempt-history\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = \"1.95\"\n",
+    );
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 41 }\n");
+    fixture.commit();
+    fixture.write("src/lib.rs", "pub fn answer() -> u8 { 42 }\n");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["requests"][0]["package_cwd"] = serde_json::json!(".");
+    let first = assert_success(&fixture.closeout(&plan), "attempt history closeout");
+    let artifact_root = PathBuf::from(first["artifact_root"].as_str().expect("artifact root"));
+    let source_root = artifact_root.parent().expect("source root").to_path_buf();
+
+    // An unexpected entry is not history to ignore.
+    fs::write(source_root.join("stray.json"), "{}\n").expect("stray entry");
+    assert_lifecycle_error(&fixture.closeout(&plan), "evidence.attempt_invalid");
+    fs::remove_file(source_root.join("stray.json")).expect("remove stray entry");
+
+    // Renaming an attempt hides evidence only if a gap were tolerated.
+    fs::rename(source_root.join("attempt-1"), source_root.join("attempt-2"))
+        .expect("rename attempt");
+    assert_lifecycle_error(&fixture.closeout(&plan), "evidence.attempt_gap");
 }
 
 #[test]

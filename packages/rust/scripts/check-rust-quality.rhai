@@ -612,6 +612,15 @@ fn validate_audit_surface(package_root) {
         evidence.contains("does not initialize or load an audit ledger") &&
         evidence.contains("evidence-only"),
         "Rust evidence boundary permits invented routing, everyday ledger load, or remediation authority");
+    let closeout_schema = json::read_file(path::join(package_root, "references/language-quality/rust/closeout.schema.json"));
+    require(closeout_schema["required"].contains("source_identity") &&
+        closeout_schema["required"].contains("attempt"),
+        "Rust closeout does not separate source identity from attempt identity");
+    require(evidence.contains("names the bytes that were tested") &&
+        evidence.contains("`attempt-<n>`") &&
+        evidence.contains("A retry never rewrites an earlier attempt") &&
+        evidence.contains("a content-only edit is a new source"),
+        "Rust evidence contract loses content-bound source identity or immutable attempts");
 }
 
 fn require_command(commands, name) {

@@ -59,25 +59,34 @@ generated private workspace. A real member's failure still fails discovery:
 its workspace's own metadata call reports it, and a member whose inheritance
 names a field the root does not define is reported as such.
 
-Everyday closeout accepts an explicit committed tranche. `inspect --scope
+Everyday closeout binds the source bytes it tested. A dirty worktree's
+`source_identity` digests every dirty path with its Git status and its worktree
+content, staged, working, untracked, deleted and symlinked paths included, so a
+content-only change is a new source instead of a repeat; `snapshot_sha256`
+stays a metadata digest. Evidence lives in ordered, immutable `attempt-<n>`
+directories under that source identity: an unchanged successful plan reuses its
+attempt, a failed selector or startup capture is retried as a new attempt
+without a source or status change, and earlier attempts are never rewritten. A
+successful capture of a different request, a record stamped with another source
+identity, and a missing attempt ordinal fail closed.
+
+Everyday closeout also accepts an explicit committed tranche. `inspect --scope
 committed` and `closeout --base --head` resolve exact base and head commits,
 require the checkout to be that head, reject an invalid revision, a
 non-ancestor or empty range, a range without a Rust anchor, and committed paths
 dirty in the worktree, and record the changed Rust anchors plus the Cargo
 packages and workspace roots the range corrects. Dirty files outside the range
 are preserved and reported, never absorbed. Evidence lives under the exact
-range identity and is reused only for an identical request; a record from
-another range or another request fails closed. A dirty-worktree closeout still
-seals one snapshot and never claims to prove committed bytes. The audit planner
-rejects committed scope: it is an everyday closeout input, not a repository
-claim.
+range identity and reuses or retries attempts the same way. A dirty-worktree
+closeout never claims to prove committed bytes. The audit planner rejects
+committed scope: it is an everyday closeout input, not a repository claim.
 
 Current immutable identities:
 
 | Package | Files | Package-tree digest | Manifest digest |
 | --- | --- | --- | --- |
 | `@northstar/typescript-quality` | 21 | `sha256:06725f4ca633e660db18cabed65ceb76e61f43708271446697bf48a0b83e80f3` | `sha256:e776287f93fe9ef2e74817dafd980b15c0c90846baf7cbb5bfa06e6d53e8abc1` |
-| `@northstar/rust-quality` | 60 | `sha256:d12d6b7ecb2c40e86f50e3f8bdc306ddacbadef93c41645535ce937a70a8a0ad` | `sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334` |
+| `@northstar/rust-quality` | 60 | `sha256:85bc64ae3d5e43fb1af17b95a6f8d2f3462fae11804278765e1faa2e3de75c7e` | `sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334` |
 
 `scripts/verify-package-identities.sh` is the oracle for these values. It fails
 when a package file changes without the identity being updated.
