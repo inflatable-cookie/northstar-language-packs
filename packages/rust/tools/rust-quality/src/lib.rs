@@ -3,6 +3,7 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -64,7 +65,13 @@ pub struct DiscoveryRecord {
     /// worktree's dirty files.
     pub rust_anchors: Vec<RustAnchor>,
     pub workspaces: Vec<CargoWorkspace>,
+    /// Digest of this discovery record's metadata, never of the source bytes.
     pub snapshot_sha256: String,
+    /// Identity of the source bytes this discovery assessed: the content of
+    /// every worktree dirty path, or the exact committed range. Absent for
+    /// repository scope, whose audit manifest binds its own baseline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_identity: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub committed_range: Option<CommittedRange>,
 }
@@ -194,6 +201,11 @@ pub fn inspect(repository: &Path, scope: Scope) -> Result<DiscoveryRecord, Strin
     }
     let workspaces = inspect_workspaces(&repository_root, &manifests)?;
     let cargo_version = command_text(Command::new(cargo()).arg("--version"), "cargo.version")?;
+    let source_identity = if scope == Scope::Repository {
+        None
+    } else {
+        Some(worktree_source_identity(&repository_root, &dirty_files)?)
+    };
 
     let mut record = DiscoveryRecord {
         schema_version: SCHEMA_VERSION.to_owned(),
@@ -205,6 +217,7 @@ pub fn inspect(repository: &Path, scope: Scope) -> Result<DiscoveryRecord, Strin
         rust_anchors,
         workspaces,
         snapshot_sha256: String::new(),
+        source_identity,
         committed_range: None,
     };
     let canonical = serde_json::to_vec(&record).map_err(|error| error.to_string())?;
@@ -280,6 +293,8 @@ pub fn inspect_range(
     let workspaces = inspect_workspaces(&repository_root, &manifests)?;
     let cargo_version = command_text(Command::new(cargo()).arg("--version"), "cargo.version")?;
     let direct_surface = direct_surface(&workspaces, &changed_files);
+    let identity_sha256 = range_identity(&base_commit, &head_commit);
+    let source_identity = format!("committed:{base_commit}:{head_commit}");
 
     let mut record = DiscoveryRecord {
         schema_version: SCHEMA_VERSION.to_owned(),
@@ -291,11 +306,12 @@ pub fn inspect_range(
         rust_anchors,
         workspaces,
         snapshot_sha256: String::new(),
+        source_identity: Some(source_identity),
         committed_range: Some(CommittedRange {
-            identity_sha256: range_identity(&base_commit, &head_commit),
             base_commit,
             head_commit,
             checkout_commit,
+            identity_sha256,
             changed_files,
             direct_surface,
         }),
@@ -385,6 +401,73 @@ fn changed_files(
     }
     changed.sort_by(|left, right| left.path.cmp(&right.path));
     Ok(changed)
+}
+
+/// Content identity of a dirty worktree tranche.
+///
+/// The identity covers every dirty path exactly as Git reports it (deleted,
+/// staged and untracked included) together with the bytes a collector reads
+/// from the worktree. Two tranches with identical paths and statuses but
+/// different content therefore never share an identity, and neither do a
+/// staged byte set and the working bytes that replaced it.
+fn worktree_source_identity(
+    repository_root: &Path,
+    dirty_files: &[DirtyFile],
+) -> Result<String, String> {
+    let mut digest = Sha256::new();
+    digest.update(b"northstar.rust-quality.worktree-source.v1\n");
+    for file in dirty_files {
+        frame(&mut digest, file.path.as_bytes());
+        frame(&mut digest, file.status.as_bytes());
+        frame(
+            &mut digest,
+            worktree_content_digest(repository_root, &file.path)?.as_bytes(),
+        );
+    }
+    Ok(format!("worktree:sha256:{:x}", digest.finalize()))
+}
+
+/// Digests the bytes a collector reads for one dirty path.
+///
+/// A path absent from the worktree is a deletion, not a read failure. A
+/// directory is a submodule or similar Git-carried entry. Everything else is
+/// the working file content, symlink target included.
+fn worktree_content_digest(repository_root: &Path, path: &str) -> Result<String, String> {
+    let full = repository_root.join(path);
+    let metadata = match fs::symlink_metadata(&full) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok("deleted".to_owned());
+        }
+        Err(error) => return Err(format!("scope.source_content {path}: {error}")),
+    };
+    if metadata.file_type().is_symlink() {
+        let target = fs::read_link(&full)
+            .map_err(|error| format!("scope.source_content {path}: {error}"))?;
+        return Ok(format!("symlink:{:x}", Sha256::digest(slash(&target).as_bytes())));
+    }
+    if metadata.is_dir() {
+        return Ok("directory".to_owned());
+    }
+    let mut file =
+        fs::File::open(&full).map_err(|error| format!("scope.source_content {path}: {error}"))?;
+    let mut content = Sha256::new();
+    let mut buffer = vec![0_u8; 64 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|error| format!("scope.source_content {path}: {error}"))?;
+        if read == 0 {
+            break;
+        }
+        content.update(&buffer[..read]);
+    }
+    Ok(format!("file:{:x}", content.finalize()))
+}
+
+fn frame(digest: &mut Sha256, bytes: &[u8]) {
+    digest.update((bytes.len() as u64).to_le_bytes());
+    digest.update(bytes);
 }
 
 fn range_identity(base_commit: &str, head_commit: &str) -> String {

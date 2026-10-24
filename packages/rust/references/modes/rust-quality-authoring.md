@@ -79,7 +79,11 @@ any mutation authority.
   explicit repository-owned selectors. It stores raw output outside the
   worktree and returns only tranche paths, applicable rules, normalized
   statuses, diagnostic identifiers, and limitations. Do not load the audit
-  projection or ledger.
+  projection or ledger. The result binds `source_identity` to the exact bytes
+  tested and reports the immutable `attempt` that holds the evidence. A failed
+  capture is retried as a new attempt after the correction; earlier attempts
+  are never overwritten, and a content-only change is a new source rather than
+  a repeat.
 - When the tranche is committed and the checkout is at its head, name it with
   `--base <rev> --head <rev>` rather than dirtying the worktree to manufacture
   an anchor. The committed form records exact commit identities and the

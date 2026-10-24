@@ -68,6 +68,33 @@ record.
 Raw artifacts remain outside the worktree under Git metadata. This operation
 does not initialize or load an audit ledger.
 
+### Source identity and attempts
+
+`source_identity` names the bytes that were tested. For a dirty worktree it
+digests every dirty path with its Git status and its worktree content: staged
+files, working bytes, untracked files, deletions and symlink targets all bind
+exactly. Two tranches with the same paths and statuses but different content
+therefore get different identities, and a content-only edit is a new source
+instead of a repeat. `snapshot_sha256` still digests the discovery metadata
+only; never read it as source identity.
+
+Each source identity owns ordered, immutable `attempt-<n>` directories below
+the Git-metadata closeout root; `attempt` in the result names the one it
+reports. A retry never rewrites an earlier attempt:
+
+- An unchanged plan whose latest attempt already holds every identical request
+  and every applicable class is reused without rerunning, and
+  `reused_evidence` names what was reused.
+- A capture that recorded `failed`, `unavailable` or `unrun` evidence is
+  retried as a new attempt, with unchanged source and status, so a transient
+  startup problem or a corrected collector needs no source change.
+- A successful capture of a different request stays authoritative:
+  `evidence.request_mismatch` fails closed instead of substituting one
+  validation for another.
+- An unexpected or missing attempt directory fails closed
+  (`evidence.attempt_invalid`, `evidence.attempt_gap`), and a record stamped
+  with another source identity is `evidence.source_mismatch`.
+
 ### Committed tranche
 
 A clean checkout proves its committed bytes, never a worktree snapshot. Name
@@ -89,17 +116,11 @@ not replaced by it.
 The result records `base_commit`, `head_commit`, `checkout_commit`,
 `identity_sha256`, and the `direct_surface` (Cargo packages and workspace roots
 the range corrects) beside the changed paths and anchors. Evidence is stored
-under that identity and stamped with it, so a record cannot be read as proof of
-another range.
-
-Repeating the same request for the same identity reuses the sealed capture and
-reports it in `reused_evidence` instead of running it again. Any other stored
-record under that identity fails closed: a different range is
-`evidence.source_mismatch`, and a different selector, program, arguments or
-environment is `evidence.request_mismatch`. Compatible captured validation is
-reused only when the request is identical; unrelated passing validation is
-never substituted for the named tranche. A worktree closeout still seals one
-snapshot only and rejects a repeat.
+under that exact range identity and stamped with it, so a record cannot be read
+as proof of another range. Attempts behave as they do for a worktree tranche: an
+identical request reuses the sealed attempt, a failed capture retries as a new
+attempt, and a different request against a successful capture is
+`evidence.request_mismatch`.
 
 ## Exact-forwarder candidate scan
 

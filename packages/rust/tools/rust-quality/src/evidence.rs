@@ -120,7 +120,12 @@ pub struct CollectionReceipt {
 pub struct Closeout {
     pub schema_version: &'static str,
     pub repository_root: String,
+    /// Digest of the discovery metadata, kept for comparison only.
     pub snapshot_sha256: String,
+    /// Identity of the source bytes this closeout tested.
+    pub source_identity: String,
+    /// Ordinal of the immutable attempt that holds this evidence.
+    pub attempt: usize,
     pub changed_files: Vec<String>,
     pub rust_anchors: Vec<String>,
     pub applicable_rules: Vec<String>,
@@ -144,12 +149,11 @@ pub struct CloseoutRange {
     pub preserved_dirty_files: Vec<String>,
 }
 
-/// Binds collected evidence to an exact committed range and allows reuse of
-/// identical captured requests for that same range.
+/// Binds collected evidence to an exact source identity and allows reuse of
+/// identical captured requests for that same source.
 #[derive(Clone, Copy, Debug)]
 pub struct EvidenceBinding<'a> {
     pub source_identity: &'a str,
-    pub reuse: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -200,9 +204,9 @@ fn generic_format() -> String {
 /// Synthetic `unrun` records cover only applicable classes that remain
 /// unrepresented for the call's resolved unit scope after consulting sealed
 /// on-disk coverage. Existing unit/class evidence stays authoritative. With an
-/// [`EvidenceBinding`] and `reuse`, an identical request for the bound source
-/// identity reuses its sealed record instead of executing again; any other
-/// existing record under that identity is a mismatch and fails before a write.
+/// [`EvidenceBinding`], an identical request for the bound source identity
+/// reuses its sealed record instead of executing again; any other existing
+/// record under that identity is a mismatch and fails before a write.
 ///
 /// # Errors
 ///
@@ -221,7 +225,7 @@ pub fn collect(
     collect_bound(repository_root, record_root, &plan, audit_units, None)
 }
 
-/// Runs [`collect`] with an optional committed-range evidence binding.
+/// Runs [`collect`] with an optional source evidence binding.
 ///
 /// # Errors
 ///
@@ -326,13 +330,11 @@ fn plan_requests(
         let digest = request_digest(request)?;
         let path = record_root.join(format!("{}.json", request.evidence_id));
         if let Some(record) = existing.get(&key) {
-            if let Some(binding) = binding
-                && binding.reuse
-            {
+            if let Some(binding) = binding {
                 if record.request_sha256.as_deref() != Some(digest.as_str()) {
                     return Err(format!(
-                        "evidence.request_mismatch: {} does not match the captured request",
-                        record.evidence_id
+                        "evidence.request_mismatch: {} does not match the captured request for {}",
+                        record.evidence_id, binding.source_identity
                     ));
                 }
                 pending.push((
@@ -510,11 +512,50 @@ fn unrun_record(evidence_id: String, unit_id: Option<String>, class: &str) -> Ev
     }
 }
 
+/// Names the directory that holds one worktree source identity's attempts.
+///
+/// The path is the content digest of the fully qualified
+/// `worktree:sha256:...` identity, so a source's evidence is named from the
+/// identity it holds.
+fn worktree_source_root(artifact_root: &Path, source_identity: &str) -> Result<PathBuf, String> {
+    let content = source_identity
+        .strip_prefix("worktree:sha256:")
+        .filter(|content| content.len() == 64)
+        .ok_or_else(|| {
+            format!("evidence.source_identity_invalid: {source_identity} is not a worktree identity")
+        })?;
+    Ok(artifact_root.join(format!("worktree-{content}")))
+}
+
+/// One immutable execution of a plan against an exact source identity.
+#[derive(Debug)]
+struct Attempt {
+    number: usize,
+    root: PathBuf,
+    records: BTreeMap<CoverageKey, EvidenceRecord>,
+}
+
+/// Where this closeout's evidence lives: an existing attempt it may reuse, or
+/// the next attempt it will create.
+#[derive(Debug)]
+struct AttemptSelection {
+    number: usize,
+    root: PathBuf,
+}
+
 /// Runs a compact worktree closeout without creating an audit ledger.
+///
+/// The source identity covers the exact bytes of every dirty path, so a
+/// content-only change is a different source rather than a repeat. Evidence is
+/// stored under that identity in immutable attempts; an unchanged successful
+/// plan reuses the attempt it already holds, and a failed capture is retried as
+/// a new attempt that never rewrites earlier evidence.
 ///
 /// # Errors
 ///
 /// Returns an error when discovery, plan validation, collection, or persistence fails.
+// The owned plan keeps the caller's signature; this operation only reads it.
+#[allow(clippy::needless_pass_by_value)]
 pub fn closeout(
     repository: &Path,
     applicable_rules: Vec<String>,
@@ -522,35 +563,32 @@ pub fn closeout(
     artifact_root: &Path,
 ) -> Result<Closeout, String> {
     let discovery = inspect(repository, Scope::Worktree)?;
-    let root = PathBuf::from(&discovery.repository_root);
-    let root_for_snapshot = artifact_root.join(&discovery.snapshot_sha256);
-    if root_for_snapshot.exists() {
-        return Err(format!(
-            "evidence.closeout_exists: {}",
-            discovery.snapshot_sha256
-        ));
-    }
+    let source_identity = discovery.source_identity.clone().ok_or_else(|| {
+        "scope.source_identity_missing: worktree discovery recorded no source identity".to_owned()
+    })?;
+    let source_root = worktree_source_root(artifact_root, &source_identity)?;
     let changed_files = discovery
         .dirty_files
         .iter()
         .map(|item| item.path.clone())
         .collect();
-    let receipt = collect(&root, &root_for_snapshot.join("evidence"), plan, None)?;
-    Ok(finish_closeout(
+    finish_attempt(
         discovery,
         changed_files,
         applicable_rules,
-        receipt,
-        slash(&root_for_snapshot),
+        &plan,
+        &source_root,
+        source_identity,
         None,
-    ))
+    )
 }
 
 /// Runs a compact closeout for an explicit committed range.
 ///
 /// Evidence is bound to the exact `base..head` identity, stored under that
-/// identity, and reused verbatim when the same request was already captured for
-/// it. Anything else already stored for the identity fails closed.
+/// identity, and reused verbatim when the same request already succeeded for
+/// it. A failed capture is retried as a new attempt. Anything else already
+/// stored for the identity fails closed.
 ///
 /// # Errors
 ///
@@ -570,20 +608,8 @@ pub fn closeout_committed(
         .committed_range
         .clone()
         .ok_or_else(|| "scope.range_missing: discovery recorded no committed range".to_owned())?;
-    let root = PathBuf::from(&discovery.repository_root);
-    let record_root = artifact_root.join(format!("committed-{}", range.identity_sha256));
     let source_identity = range.source_identity();
-    let binding = EvidenceBinding {
-        source_identity: &source_identity,
-        reuse: true,
-    };
-    let receipt = collect_bound(
-        &root,
-        &record_root.join("evidence"),
-        plan,
-        None,
-        Some(&binding),
-    )?;
+    let source_root = artifact_root.join(format!("committed-{}", range.identity_sha256));
     let changed_files = range.changed_paths();
     let closeout_range = CloseoutRange {
         base_commit: range.base_commit,
@@ -597,33 +623,48 @@ pub fn closeout_committed(
             .map(|item| item.path.clone())
             .collect(),
     };
-    let reused_evidence = receipt.reused.clone();
-    Ok(Closeout {
-        reused_evidence,
-        ..finish_closeout(
-            discovery,
-            changed_files,
-            applicable_rules,
-            receipt,
-            slash(&record_root),
-            Some(closeout_range),
-        )
-    })
+    finish_attempt(
+        discovery,
+        changed_files,
+        applicable_rules,
+        plan,
+        &source_root,
+        source_identity,
+        Some(closeout_range),
+    )
 }
 
-fn finish_closeout(
+fn finish_attempt(
     discovery: crate::DiscoveryRecord,
     changed_files: Vec<String>,
     applicable_rules: Vec<String>,
-    receipt: CollectionReceipt,
-    artifact_root: String,
+    plan: &EvidencePlan,
+    source_root: &Path,
+    source_identity: String,
     committed_range: Option<CloseoutRange>,
-) -> Closeout {
+) -> Result<Closeout, String> {
+    let root = PathBuf::from(&discovery.repository_root);
+    let attempts = list_attempts(source_root)?;
+    verify_source_binding(&attempts, &source_identity)?;
+    let selection = select_attempt(&attempts, source_root, plan, &source_identity)?;
+    let binding = EvidenceBinding {
+        source_identity: &source_identity,
+    };
+    let receipt = collect_bound(
+        &root,
+        &selection.root.join("evidence"),
+        plan,
+        None,
+        Some(&binding),
+    )?;
+    let reused_evidence = receipt.reused.clone();
     let evidence = receipt.records.iter().map(compact).collect();
-    Closeout {
+    Ok(Closeout {
         schema_version: "northstar.rust-quality.closeout.v1",
         repository_root: discovery.repository_root,
         snapshot_sha256: discovery.snapshot_sha256,
+        source_identity,
+        attempt: selection.number,
         changed_files,
         rust_anchors: discovery
             .rust_anchors
@@ -633,10 +674,153 @@ fn finish_closeout(
         applicable_rules,
         evidence,
         limitations: receipt.limitations,
-        artifact_root,
+        artifact_root: slash(&selection.root),
         committed_range,
-        reused_evidence: Vec::new(),
+        reused_evidence,
+    })
+}
+
+/// Lists the immutable attempts already stored for one source identity.
+///
+/// Attempt directories are ordinal and contiguous. An unexpected entry, a
+/// missing ordinal, or a record that cannot be verified fails closed instead of
+/// being ignored, so a deleted or renamed attempt cannot hide earlier evidence.
+fn list_attempts(source_root: &Path) -> Result<Vec<Attempt>, String> {
+    let entries = match fs::read_dir(source_root) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(error) => return Err(format!("evidence.attempt_list: {error}")),
+    };
+    let mut attempts = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("evidence.attempt_list: {error}"))?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let number = name
+            .strip_prefix("attempt-")
+            .and_then(|value| value.parse::<usize>().ok())
+            .filter(|number| *number >= 1 && format!("attempt-{number}") == name)
+            .ok_or_else(|| format!("evidence.attempt_invalid: {name}"))?;
+        let root = entry.path();
+        if !root.is_dir() {
+            return Err(format!("evidence.attempt_invalid: {name} is not a directory"));
+        }
+        let records = index_existing_coverage(&root.join("evidence"))?;
+        attempts.push(Attempt {
+            number,
+            root,
+            records,
+        });
     }
+    attempts.sort_by_key(|attempt| attempt.number);
+    for (index, attempt) in attempts.iter().enumerate() {
+        if attempt.number != index + 1 {
+            return Err(format!(
+                "evidence.attempt_gap: attempt-{} is missing",
+                index + 1
+            ));
+        }
+    }
+    Ok(attempts)
+}
+
+/// Rejects any stored record captured for another source identity.
+fn verify_source_binding(attempts: &[Attempt], source_identity: &str) -> Result<(), String> {
+    for attempt in attempts {
+        for record in attempt.records.values() {
+            if record.source_identity.as_deref() != Some(source_identity) {
+                return Err(format!(
+                    "evidence.source_mismatch: {} in attempt-{} was not captured for {source_identity}",
+                    record.evidence_id, attempt.number
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Chooses the attempt this plan reports.
+///
+/// An attempt satisfies the plan when every request is the identical captured
+/// request and every applicable class in scope has a record. A satisfied clean
+/// attempt is reused unchanged. A satisfied attempt that captured a failed or
+/// unavailable result is retried as a new attempt, so a corrected collector or
+/// a transient startup failure never needs a source change. An unsatisfied
+/// attempt may be superseded only when the conflicting record is itself a
+/// failure; a successful capture of a different request stays authoritative and
+/// fails closed.
+fn select_attempt(
+    attempts: &[Attempt],
+    source_root: &Path,
+    plan: &EvidencePlan,
+    source_identity: &str,
+) -> Result<AttemptSelection, String> {
+    let next = |attempts: &[Attempt]| {
+        let number = attempts.last().map_or(1, |attempt| attempt.number + 1);
+        AttemptSelection {
+            number,
+            root: source_root.join(format!("attempt-{number}")),
+        }
+    };
+    let Some(latest) = attempts.last() else {
+        return Ok(next(attempts));
+    };
+    if attempt_satisfies(latest, plan)? {
+        if attempt_is_clean(latest) {
+            return Ok(AttemptSelection {
+                number: latest.number,
+                root: latest.root.clone(),
+            });
+        }
+        return Ok(next(attempts));
+    }
+    for request in &plan.requests {
+        let key = coverage_key(request.unit_id.clone(), &request.evidence_class);
+        let Some(record) = latest.records.get(&key) else {
+            continue;
+        };
+        if record.request_sha256.as_deref() == Some(request_digest(request)?.as_str()) {
+            continue;
+        }
+        if !retryable_status(&record.status) {
+            return Err(format!(
+                "evidence.request_mismatch: {} at attempt-{} was not captured from this request for {source_identity}",
+                record.evidence_id, latest.number
+            ));
+        }
+    }
+    Ok(next(attempts))
+}
+
+fn attempt_satisfies(attempt: &Attempt, plan: &EvidencePlan) -> Result<bool, String> {
+    for request in &plan.requests {
+        let key = coverage_key(request.unit_id.clone(), &request.evidence_class);
+        let digest = request_digest(request)?;
+        match attempt.records.get(&key) {
+            Some(record) if record.request_sha256.as_deref() == Some(digest.as_str()) => {}
+            _ => return Ok(false),
+        }
+    }
+    // A closeout plan has no unit scope: one unnamed unit holds every class.
+    let scope = vec![None];
+    for class in &plan.applicable_classes {
+        for unit_id in &scope {
+            if !attempt.records.contains_key(&coverage_key(unit_id.clone(), class)) {
+                return Ok(false);
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn attempt_is_clean(attempt: &Attempt) -> bool {
+    attempt
+        .records
+        .values()
+        .all(|record| record.status != "failed" && record.status != "unavailable")
+}
+
+fn retryable_status(status: &str) -> bool {
+    matches!(status, "failed" | "unavailable" | "unrun")
 }
 
 pub(crate) fn read_verified(path: &Path) -> Result<EvidenceRecord, String> {

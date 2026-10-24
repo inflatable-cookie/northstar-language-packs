@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Repair `@northstar/rust-quality` `0.2.3` everyday closeout identity. A dirty
+worktree closeout binds `source_identity` to the bytes it tested: every dirty
+path with its Git status and worktree content, including staged, working,
+untracked, deleted and symlinked paths. Two tranches with identical paths and
+statuses but different content no longer share an identity, so a content-only
+change is a new source instead of a rejected repeat; `snapshot_sha256` stays a
+metadata digest. Evidence lives in ordered, immutable `attempt-<n>` directories
+per source identity: an unchanged successful plan reuses its attempt, a failed
+selector or startup capture is retried as a new attempt without a source or
+status change, and earlier attempts are never overwritten. A successful
+capture of a different request, a record stamped with another source identity,
+and a missing attempt ordinal fail closed. New engine fixtures cover
+content-only changes, staged and working bytes, untracked and deleted paths,
+failed-selector and startup retries, unchanged reuse, and mismatched or
+tampered attempt history. The repair produces a replacement package identity;
+the version, workflows, declaration and compatibility range are unchanged.
+
 - Repair `@northstar/rust-quality` `0.2.3` everyday closeout. `inspect` and
 `closeout` take an explicit committed tranche (`--scope committed --base <rev>
 --head <rev>`, and `--base/--head` on `closeout`). The tool resolves exact
@@ -14,8 +31,7 @@ identity: an identical request is reused without rerunning, and a repeat of the
 same plan still reports every applicable class it already holds, including a
 sealed `unrun` limitation for a class no request named. A record from another
 range or another request fails closed instead of being substituted.
-The dirty-worktree closeout keeps its existing single-snapshot behavior. New
-engine fixtures cover clean pinned heads, a real Rust change, empty and
+New engine fixtures cover clean pinned heads, a real Rust change, empty and
 no-Rust ranges, invalid and unbounded revisions, checkout mismatch, dirty range
 paths, dirty-state preservation, reuse, and mismatched or stale evidence. The
 repair produces a replacement package identity; the version, workflows,
