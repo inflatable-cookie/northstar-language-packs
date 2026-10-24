@@ -6,6 +6,10 @@ alias = "typescript-quality"
 
 [tasks]
 "check:typescript-quality" = [{ rhai = "scripts/check-typescript-quality.rhai" }]
+# Nonmutating shell format check for this package's maintained shell sources.
+# Rhai sources have no maintained formatter, so the repository `format:check`
+# declares that limitation. Requires shfmt (mvdan/sh v3) on PATH.
+"format:check" = "shfmt --diff --indent 4 --language-dialect posix scripts/prove-installed-invocation.sh scripts/self-check.sh"
 "typescript-quality:setup" = [{ rhai = "scripts/typescript-quality-setup.rhai" }]
 "typescript-quality:record" = [{ rhai = "scripts/typescript-quality-recorder.rhai" }]
 "test:typescript-quality-setup" = [{ task = "typescript-quality:setup self-test" }]

@@ -26,15 +26,24 @@ Commands go through Effigy from the repository root:
 - `effigy doctor` — health and routing when something looks wrong
 - `effigy test --plan` — test scope before choosing it
 - `effigy qa` — the full repository check
+- `effigy format:check` — nonmutating format check for maintained shell
+  sources, with the Rhai gap declared
 - `scripts/verify-package-identities.sh` — the release-identity oracle
 
 Package checks run from `packages/rust` through its own catalogue:
-`effigy check:rust-quality`, `effigy test:rust-quality-setup`,
-`effigy test:rust-quality-engine`, and
+`effigy check:rust-quality`, `effigy format:check`,
+`effigy test:rust-quality-setup`, `effigy test:rust-quality-engine`, and
 `effigy test:rust-quality-installed-route`. The engine suite stays on plain
 Cargo: its fixtures run Cargo themselves, and `oxide`'s inherited target
 directory lets same-named fixtures share one Cargo unit, which changes test
 results.
+
+Format checks run `shfmt` (mvdan/sh v3) in `--diff` mode under
+`--indent 4 --language-dialect posix`, report, and never rewrite a file. They
+need `shfmt` on `PATH`, so they are not part of `effigy qa`. Rhai has no
+maintained formatter: the root selector declares that limitation rather than
+inventing formatting semantics. `effigy test:format-check` proves the fixture
+behaviour.
 
 ## Product rules
 

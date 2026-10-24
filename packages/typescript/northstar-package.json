@@ -25,6 +25,7 @@
     ],
     "optional_effigy_selectors": [
       "check:typescript-quality",
+      "format:check",
       "typescript-quality:setup",
       "typescript-quality:record",
       "test:typescript-quality-setup",

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- Add covering nonmutating format checks for maintained package sources. The
+root `effigy format:check` selector, the same selector in both package
+catalogues, and the repository `format:check` inventory check maintained shell
+sources with `shfmt` (mvdan/sh v3) in `--diff` mode under the declared
+`--indent 4 --language-dialect posix` style, so they report unformatted sources
+and never rewrite a file. They fail closed when `shfmt` is absent, and the root
+selector also fails when a maintained shell or Rhai source is undeclared or when
+a package catalogue stops naming its own shell files. Rhai has no maintained
+formatter, so the root selector declares that bounded limitation instead of
+claiming format coverage it cannot prove. `effigy test:format-check` proves a
+finite malformed fixture fails, its formatted control passes, and neither file
+is rewritten. Both installed-route proof scripts now carry the declared shell
+style, and each manifest gains `format:check` as an optional selector. The
+repair produces replacement package-tree, listing and manifest identities;
+versions, workflows, declaration and the Northstar core range are unchanged.
+
 - Release `@northstar/rust-quality` `0.2.4`. The installed-route proof launches
 named and `skill run` Effigy children from shell code, so its selector and the
 root package-identity selector that shells into the same proof declare
