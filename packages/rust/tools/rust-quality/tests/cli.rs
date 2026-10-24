@@ -1424,6 +1424,18 @@ fn records_committed_range_identity_and_direct_surface() {
         serde_json::json!({"packages": ["engine"], "workspaces": ["tools/engine"]})
     );
     assert_eq!(record["dirty_files"], serde_json::json!([]));
+
+    let planned = fixture.plan(
+        &record,
+        &serde_json::json!({
+            "audit_id": "committed-audit",
+            "units": [{"unit_id": "core", "anchors": ["tools/engine/src/lib.rs"]}],
+            "excluded_dirty_files": [],
+            "repository_coverage": null
+        }),
+    );
+    assert_lifecycle_error(&planned, "scope.committed_audit_unsupported");
+
     let identity = record["committed_range"]["identity_sha256"]
         .as_str()
         .expect("identity");
@@ -1608,6 +1620,64 @@ fn reuses_captured_committed_evidence_without_rerunning() {
     assert_lifecycle_error(
         &fixture.closeout_committed(&changed, &base, &head),
         "evidence.request_mismatch",
+    );
+}
+
+#[test]
+fn repeated_mixed_plan_keeps_sealed_unrun_limitations() {
+    let (fixture, base, head) = committed_fixture("committed-mixed");
+    let marker = fixture.root.join(".git/evidence-runs");
+    let mut plan = committed_plan();
+    plan["evidence_plan"]["applicable_classes"] = serde_json::json!(["compiler", "lint"]);
+    plan["evidence_plan"]["requests"][0]["execution"] = serde_json::json!({
+        "kind": "command",
+        "program": "sh",
+        "args": ["-c", "printf 'run\\n' >> \"$1\"", "sh", marker.to_string_lossy()]
+    });
+
+    let first = assert_success(
+        &fixture.closeout_committed(&plan, &base, &head),
+        "first mixed closeout",
+    );
+    assert_eq!(
+        first["evidence"][0]["evidence_id"],
+        "committed-check",
+        "named request"
+    );
+    assert_eq!(first["evidence"][0]["status"], "passed");
+    assert_eq!(
+        first["evidence"][1]["evidence_id"],
+        "unrun-lint",
+        "unrequested applicable class stays an explicit limitation"
+    );
+    assert_eq!(first["evidence"][1]["status"], "unrun");
+    let limitation = serde_json::json!([{
+        "key": "evidence:unrun-lint",
+        "kind": "evidence_unrun",
+        "evidence": ["no selector was declared or resolved for lint"]
+    }]);
+    assert_eq!(first["limitations"], limitation);
+    assert_eq!(
+        fs::read_to_string(&marker).expect("run marker"),
+        "run\n"
+    );
+
+    // The identical repeat reuses both sealed records and reports the same
+    // tranche evidence, including the class that was never requested.
+    let second = assert_success(
+        &fixture.closeout_committed(&plan, &base, &head),
+        "second mixed closeout",
+    );
+    assert_eq!(second["evidence"], first["evidence"]);
+    assert_eq!(second["limitations"], first["limitations"]);
+    assert_eq!(
+        second["reused_evidence"],
+        serde_json::json!(["committed-check", "unrun-lint"])
+    );
+    assert_eq!(
+        fs::read_to_string(&marker).expect("run marker"),
+        "run\n",
+        "reuse never reruns the captured request"
     );
 }
 

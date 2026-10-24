@@ -274,6 +274,9 @@ pub fn collect_bound(
         write_new_json(&path, &record)?;
         records.push(record);
     }
+    if binding.is_some() {
+        reuse_sealed_coverage(plan, &scope, &existing, &planned, &mut records, &mut reused);
+    }
     records.sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
     let limitations = limitations(&records);
     Ok(CollectionReceipt {
@@ -383,6 +386,31 @@ fn plan_unrun(
         }
     }
     Ok(unrun_plans)
+}
+
+/// Adds sealed coverage of applicable classes that a bound tranche already
+/// holds, so a repeat reports the same evidence as its first capture instead of
+/// only the requests it happened to name again.
+fn reuse_sealed_coverage(
+    plan: &EvidencePlan,
+    scope: &[Option<String>],
+    existing: &BTreeMap<CoverageKey, EvidenceRecord>,
+    planned: &BTreeSet<CoverageKey>,
+    records: &mut Vec<EvidenceRecord>,
+    reused: &mut Vec<String>,
+) {
+    for class in &plan.applicable_classes {
+        for unit_id in scope {
+            let key = coverage_key(unit_id.clone(), class);
+            if planned.contains(&key) {
+                continue;
+            }
+            if let Some(record) = existing.get(&key) {
+                reused.push(record.evidence_id.clone());
+                records.push(record.clone());
+            }
+        }
+    }
 }
 
 type Pending = (EvidenceRequest, String, PendingAction);
