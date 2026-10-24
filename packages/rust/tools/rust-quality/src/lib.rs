@@ -354,11 +354,53 @@ fn ignored_directory(name: &OsStr) -> bool {
     )
 }
 
+/// Recognizes Cargo's own no-workspace-root inheritance failure.
+///
+/// A manifest that inherits `version`, `edition`, `lints`, dependencies or
+/// another field from a workspace root, while Cargo finds no workspace root for
+/// it, is not an independently buildable workspace. That is the shape of an
+/// unowned template (built only after being copied into a generated workspace)
+/// and of a tree the consumer excluded from its workspace. Both stay out of
+/// discovery instead of failing it.
+///
+/// Real workspace damage keeps failing discovery: a member whose inheritance
+/// names a field the root does not define reports that field as undefined, and
+/// a member Cargo cannot load reports a manifest or member error. Neither
+/// carries the "failed to find a workspace root" cause matched here, so only
+/// this exact class is skipped.
+fn inherits_without_workspace_root(stderr: &str) -> bool {
+    stderr.contains("error inheriting ")
+        && stderr.contains("from workspace root manifest's `workspace.")
+        && stderr.contains("failed to find a workspace root")
+}
+
+/// Recognizes Cargo refusing a manifest that its enclosing workspace does not
+/// own, when that enclosing workspace did resolve.
+///
+/// Cargo's membership answer is the evidence: the resolved workspace's member
+/// list is complete, and the failing manifest is neither a member nor
+/// excluded, so it is not independently buildable in place. Adding it to the
+/// workspace changes resolved features and is not a discovery repair, so it
+/// stays out of the inventory. This is the shape of a template that the
+/// consumer rebuilds inside a generated private workspace (Longhorn's
+/// `examples/greenfield-compositions` does exactly that) and of any other
+/// unowned tree beneath a workspace root.
+///
+/// A real member's damage still fails: the enclosing workspace's own
+/// `cargo metadata` call fails and reports it, independently of this manifest.
+fn unowned_by_resolved_workspace(manifest: &Path, stderr: &str, roots: &[PathBuf]) -> bool {
+    if !stderr.contains("current package believes it's in a workspace when it's not") {
+        return false;
+    }
+    roots.iter().any(|root| manifest.starts_with(root))
+}
+
 fn inspect_workspaces(
     repository_root: &Path,
     manifests: &[PathBuf],
 ) -> Result<Vec<CargoWorkspace>, String> {
     let mut by_root = BTreeMap::new();
+    let mut failures = Vec::new();
     for manifest in manifests {
         let output = Command::new(cargo())
             .current_dir(repository_root)
@@ -373,17 +415,31 @@ fn inspect_workspaces(
             .output()
             .map_err(|error| format!("cargo.metadata.startup {}: {error}", manifest.display()))?;
         if !output.status.success() {
-            return Err(format!(
-                "cargo.metadata.failed {}: {}",
-                manifest.display(),
-                String::from_utf8_lossy(&output.stderr).trim()
+            failures.push((
+                manifest.clone(),
+                String::from_utf8_lossy(&output.stderr).into_owned(),
             ));
+            continue;
         }
         let metadata: Metadata = serde_json::from_slice(&output.stdout)
             .map_err(|error| format!("cargo.metadata.parse {}: {error}", manifest.display()))?;
         by_root
             .entry(metadata.workspace_root.clone())
             .or_insert(metadata);
+    }
+
+    let roots: Vec<PathBuf> = by_root.keys().map(PathBuf::from).collect();
+    for (manifest, stderr) in failures {
+        if inherits_without_workspace_root(&stderr)
+            || unowned_by_resolved_workspace(&manifest, &stderr, &roots)
+        {
+            continue;
+        }
+        return Err(format!(
+            "cargo.metadata.failed {}: {}",
+            manifest.display(),
+            stderr.trim()
+        ));
     }
 
     by_root

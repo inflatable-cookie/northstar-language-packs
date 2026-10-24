@@ -161,7 +161,7 @@ def compute_spec_034_tree_digest(pkg_root):
             files.append(rel)
     files.sort(key=lambda p: p.encode('utf-8'))
 
-    assert len(files) == 59, f'Expected 59 package files, got {len(files)}'
+    assert len(files) == 60, f'Expected 60 package files, got {len(files)}'
 
     h = hashlib.sha256()
     for rel in files:
@@ -291,11 +291,11 @@ SOURCE_MAP = {
     'skills/northstar/tools/rust-quality/build.rs': ('tools/rust-quality/build.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/src/evidence.rs': ('tools/rust-quality/src/evidence.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/src/ledger.rs': ('tools/rust-quality/src/ledger.rs', 'byte_exact'),
-    'skills/northstar/tools/rust-quality/src/lib.rs': ('tools/rust-quality/src/lib.rs', 'byte_exact'),
+    'skills/northstar/tools/rust-quality/src/lib.rs': ('tools/rust-quality/src/lib.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/src/lifecycle.rs': ('tools/rust-quality/src/lifecycle.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/src/main.rs': ('tools/rust-quality/src/main.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/src/plan.rs': ('tools/rust-quality/src/plan.rs', 'byte_exact'),
-    'skills/northstar/tools/rust-quality/tests/cli.rs': ('tools/rust-quality/tests/cli.rs', 'byte_exact'),
+    'skills/northstar/tools/rust-quality/tests/cli.rs': ('tools/rust-quality/tests/cli.rs', 'package_adapted'),
     'skills/northstar/tools/rust-quality/tests/detectors.rs': ('tools/rust-quality/tests/detectors.rs', 'byte_exact'),
     'skills/northstar/tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.lock': ('tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.lock', 'byte_exact'),
     'skills/northstar/tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.toml': ('tools/rust-quality/tests/fixtures/detectors/exceptions/Cargo.toml', 'eof_newline_normalized'),
@@ -321,8 +321,10 @@ ADAPTED_EXPECTED = {
     'references/modes/rust-quality-authoring.md': 'sha256:6d22efb5a3a3449a04e68a8ab6f7dc58c82e740ad7955283a245f88e53548aba',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:57cfd7e6e301a4b6c15b1b5ab0222869c5e3b980d583af2cc1198c53334af93b',
+    'scripts/check-rust-quality.rhai': 'sha256:8cec2154a31ef425b9617f0f1e9532c313eb0630dcea6b12322705b8bf1c5529',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
+    'tools/rust-quality/src/lib.rs': 'sha256:e595657322fbc2a1cdbbfb2334868ef08ed195934529fb58e8c008bdd4d141fc',
+    'tools/rust-quality/tests/cli.rs': 'sha256:a554bbd06ca550f9e41ef3b137f3cbbeb86030f3052176ac91f7e30228c5e052',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -347,12 +349,12 @@ def verify_source_parity(pkg_root):
 
 verify_source_parity(root)
 
-assert counts['byte_exact'] == 41, f'Expected 41 byte_exact, got {counts[\"byte_exact\"]}'
+assert counts['byte_exact'] == 39, f'Expected 39 byte_exact, got {counts[\"byte_exact\"]}'
 assert counts['eof_newline_normalized'] == 4, f'Expected 4 eof_newline_normalized, got {counts[\"eof_newline_normalized\"]}'
-assert counts['package_adapted'] == 9, f'Expected 9 package_adapted, got {counts[\"package_adapted\"]}'
+assert counts['package_adapted'] == 11, f'Expected 11 package_adapted, got {counts[\"package_adapted\"]}'
 
 # Negative 1: unrecorded rewrite in a byte_exact file fails closed
-tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/lib.rs')
+tampered_byte_exact = os.path.join(root, 'tools/rust-quality/src/main.rs')
 with open(tampered_byte_exact, 'rb') as f:
     orig_b = f.read()
 try:
@@ -716,7 +718,7 @@ if [ -e "$installed/tools/rust-quality/target" ]; then
     exit 1
 fi
 require_file_contains "$transcripts/cargo-test.txt" "4 passed" "unit test count"
-require_file_contains "$transcripts/cargo-test.txt" "21 passed" "cli test count"
+require_file_contains "$transcripts/cargo-test.txt" "25 passed" "cli test count"
 require_file_contains "$transcripts/cargo-test.txt" "2 passed" "detectors test count"
 
 # Probe binary installation and source verification
@@ -731,8 +733,8 @@ then
 fi
 require_file_contains "$receipt_path" "\"current\": true" "probe receipt current"
 require_file_contains "$receipt_path" "\"schema_version\": \"northstar.rust-quality.install.v1\"" "probe receipt schema"
-require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"2b75b0866e3bedf99c133e53cb742c284715fb1f10f589358ce2a91331571157\"" "probe embedded payload hash"
-require_file_contains "$receipt_path" "\"source_payload_sha256\": \"2b75b0866e3bedf99c133e53cb742c284715fb1f10f589358ce2a91331571157\"" "probe source payload hash"
+require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"fd8d449f604ea9f253cfcb81f6d756bfd00566be62ffdcc43114699aeea7dc64\"" "probe embedded payload hash"
+require_file_contains "$receipt_path" "\"source_payload_sha256\": \"fd8d449f604ea9f253cfcb81f6d756bfd00566be62ffdcc43114699aeea7dc64\"" "probe source payload hash"
 
 # Tamper negatives: mutating source must cause verify-install to fail closed
 tampered="$work/tampered-tool"

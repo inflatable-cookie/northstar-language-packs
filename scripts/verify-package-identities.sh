@@ -74,12 +74,12 @@ def file_sha256(path):
 # 1. Validate @northstar/rust-quality release identities
 rust_pkg = os.path.join(repo_root, 'packages/rust')
 rust_count, rust_tree_digest = compute_spec_034_tree_digest(rust_pkg)
-assert rust_count == 59, f'Expected 59 Rust package files, got {rust_count}'
+assert rust_count == 60, f'Expected 60 Rust package files, got {rust_count}'
 
-expected_rust_tree = 'sha256:67261b22f5cb766e83606f87425e793b385dd952baf1fae1f6348b257270ab39'
+expected_rust_tree = 'sha256:902f8fd6464fddf3fabb8eb8acd0470bc761e8564671b70c72bc0acb1cda9cbd'
 assert rust_tree_digest == expected_rust_tree, f'Rust Spec-034 tree digest mismatch: {rust_tree_digest} != {expected_rust_tree}'
 
-expected_rust_listing = 'sha256:2ddb06529a98e33d06974fff24843be73b3eae16aed917547bf3f0da09c9e991'
+expected_rust_listing = 'sha256:cd885330c66e3c39a48cdd6123cc0e5b21fe4ff09313c5e8216c6f9598992e12'
 rust_listing = compute_listing_digest(rust_pkg)
 assert rust_listing == expected_rust_listing, f'Rust listing digest mismatch: {rust_listing} != {expected_rust_listing}'
 
@@ -112,7 +112,7 @@ try:
     with open(stray_file, 'wb') as f:
         f.write(b'stray')
     stray_count, _ = compute_spec_034_tree_digest(rust_pkg)
-    assert stray_count != 59, 'Stray file was not detected in file count'
+    assert stray_count != 60, 'Stray file was not detected in file count'
 finally:
     if os.path.exists(stray_file):
         os.remove(stray_file)
@@ -131,4 +131,4 @@ print('Repository package release identities: OK')
 " "$root"
 
 # 3. Wire external expected tree binding into package proof
-"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:67261b22f5cb766e83606f87425e793b385dd952baf1fae1f6348b257270ab39"
+"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:902f8fd6464fddf3fabb8eb8acd0470bc761e8564671b70c72bc0acb1cda9cbd"

@@ -66,6 +66,15 @@ impl Fixture {
         serde_json::from_slice(&output.stdout).expect("parse prototype output")
     }
 
+    fn inspect_failure(&self, scope: &str) -> std::process::Output {
+        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+            .args(["inspect", "--repo"])
+            .arg(&self.root)
+            .args(["--scope", scope])
+            .output()
+            .expect("run prototype")
+    }
+
     fn plan(&self, discovery: &Value, input: &Value) -> std::process::Output {
         let scratch = self.root.join(".git/northstar-test-inputs");
         fs::create_dir_all(&scratch).expect("create plan scratch");
@@ -272,6 +281,223 @@ fn discovers_nested_rust_in_mixed_repository() {
     assert_eq!(
         record["rust_anchors"][0]["path"],
         "services/engine/src/lib.rs"
+    );
+}
+
+#[test]
+fn discovers_root_workspace_members_and_independent_nested_workspace() {
+    let fixture = Fixture::new("workspace-tree");
+    fixture.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/api\", \"crates/core\"]\nresolver = \"3\"\n\n[workspace.package]\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    );
+    fixture.write(
+        "crates/api/Cargo.toml",
+        "[package]\nname = \"api\"\nversion.workspace = true\nedition.workspace = true\n",
+    );
+    fixture.write("crates/api/src/lib.rs", "pub fn api() {}\n");
+    fixture.write(
+        "crates/core/Cargo.toml",
+        "[package]\nname = \"core\"\nversion.workspace = true\nedition.workspace = true\n",
+    );
+    fixture.write("crates/core/src/lib.rs", "pub fn core() {}\n");
+    fixture.write(
+        "tools/generator/Cargo.toml",
+        "[workspace]\nmembers = [\"crate\"]\nresolver = \"3\"\n\n[workspace.package]\nversion = \"0.2.0\"\n",
+    );
+    fixture.write(
+        "tools/generator/crate/Cargo.toml",
+        "[package]\nname = \"generator\"\nversion.workspace = true\nedition = \"2024\"\n",
+    );
+    fixture.write("tools/generator/crate/src/main.rs", "fn main() {}\n");
+    fixture.commit();
+    fixture.write("crates/core/src/lib.rs", "pub fn core() { }\n");
+
+    let record = fixture.inspect();
+    let workspaces = record["workspaces"].as_array().expect("workspaces");
+    assert_eq!(workspaces.len(), 2);
+
+    let root = workspaces
+        .iter()
+        .find(|workspace| workspace["root"] == ".")
+        .expect("root workspace");
+    assert_eq!(root["manifest_path"], "Cargo.toml");
+    let members: Vec<(&str, &str)> = root["packages"]
+        .as_array()
+        .expect("packages")
+        .iter()
+        .map(|package| {
+            (
+                package["name"].as_str().expect("package name"),
+                package["manifest_path"].as_str().expect("manifest path"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        members,
+        vec![
+            ("api", "crates/api/Cargo.toml"),
+            ("core", "crates/core/Cargo.toml"),
+        ]
+    );
+
+    let generator = workspaces
+        .iter()
+        .find(|workspace| workspace["root"] == "tools/generator")
+        .expect("independent nested workspace");
+    assert_eq!(generator["manifest_path"], "tools/generator/Cargo.toml");
+    assert_eq!(generator["packages"][0]["name"], "generator");
+    assert_eq!(
+        generator["packages"][0]["manifest_path"],
+        "tools/generator/crate/Cargo.toml"
+    );
+
+    // Membership and attribution are deterministic across runs.
+    let repeat = fixture.inspect();
+    assert_eq!(record["workspaces"], repeat["workspaces"]);
+    assert_eq!(record["snapshot_sha256"], repeat["snapshot_sha256"]);
+}
+
+#[test]
+fn skips_unowned_workspace_templates() {
+    let fixture = Fixture::new("unowned-templates");
+    fixture.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/core\"]\nexclude = [\"examples/excluded-template\"]\nresolver = \"3\"\n\n[workspace.package]\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[workspace.dependencies]\nserde = \"1.0\"\n",
+    );
+    fixture.write(
+        "crates/core/Cargo.toml",
+        "[package]\nname = \"core\"\nversion.workspace = true\nedition.workspace = true\n\n[dependencies]\nserde.workspace = true\n",
+    );
+    fixture.write("crates/core/src/lib.rs", "pub fn core() {}\n");
+    // Beneath the workspace root, but not a member and not excluded.
+    fixture.write(
+        "examples/template-in-root/Cargo.toml",
+        "[package]\nname = \"template-in-root\"\nversion = \"0.0.0\"\nedition.workspace = true\n\n[dependencies]\nserde.workspace = true\n",
+    );
+    fixture.write(
+        "examples/template-in-root/src/lib.rs",
+        "pub fn template() {}\n",
+    );
+    // Explicitly excluded from the workspace and inheriting from no root.
+    fixture.write(
+        "examples/excluded-template/Cargo.toml",
+        "[package]\nname = \"excluded-template\"\nversion = \"0.0.0\"\nedition.workspace = true\n",
+    );
+    fixture.write(
+        "examples/excluded-template/src/lib.rs",
+        "pub fn template() {}\n",
+    );
+    // Outside every workspace root and inheriting from no root.
+    fixture.write(
+        "vendored/template-no-root/Cargo.toml",
+        "[package]\nname = \"template-no-root\"\nversion.workspace = true\nedition = \"2024\"\n",
+    );
+    fixture.write(
+        "vendored/template-no-root/src/lib.rs",
+        "pub fn template() {}\n",
+    );
+    // Unrelated non-Rust content and an ignored directory tree.
+    fixture.write("package.json", "{\"private\":true}\n");
+    fixture.write("docs/notes.md", "not a Rust workspace\n");
+    fixture.write("node_modules/legacy/Cargo.toml", "[package\n");
+    fixture.commit();
+    fixture.write("crates/core/src/lib.rs", "pub fn core() { }\n");
+
+    let record = fixture.inspect();
+    let workspaces = record["workspaces"].as_array().expect("workspaces");
+    assert_eq!(workspaces.len(), 1);
+    assert_eq!(workspaces[0]["root"], ".");
+    let names: Vec<&str> = workspaces[0]["packages"]
+        .as_array()
+        .expect("packages")
+        .iter()
+        .map(|package| package["name"].as_str().expect("package name"))
+        .collect();
+    assert_eq!(names, vec!["core"]);
+    let manifests: Vec<&str> = workspaces[0]["packages"]
+        .as_array()
+        .expect("packages")
+        .iter()
+        .map(|package| package["manifest_path"].as_str().expect("manifest path"))
+        .collect();
+    assert!(
+        !manifests.iter().any(|path| path.contains("template")),
+        "unowned template entered discovery: {manifests:?}"
+    );
+
+    let repository = fixture.inspect_scope("repository");
+    assert_eq!(repository["workspaces"], record["workspaces"]);
+    assert_eq!(fixture.inspect()["workspaces"], record["workspaces"]);
+}
+
+#[test]
+fn unowned_template_does_not_hide_a_malformed_member() {
+    let fixture = Fixture::new("malformed-member");
+    fixture.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/core\", \"crates/broken\"]\nresolver = \"3\"\n\n[workspace.package]\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    );
+    fixture.write(
+        "crates/core/Cargo.toml",
+        "[package]\nname = \"core\"\nversion.workspace = true\nedition.workspace = true\n",
+    );
+    fixture.write("crates/core/src/lib.rs", "pub fn core() {}\n");
+    fixture.write("crates/broken/Cargo.toml", "[package\nname = \"broken\"\n");
+    fixture.write("crates/broken/src/lib.rs", "pub fn broken() {}\n");
+    fixture.write(
+        "examples/template-in-root/Cargo.toml",
+        "[package]\nname = \"template-in-root\"\nversion = \"0.0.0\"\nedition.workspace = true\n",
+    );
+    fixture.write(
+        "examples/template-in-root/src/lib.rs",
+        "pub fn template() {}\n",
+    );
+    fixture.commit();
+    fixture.write("crates/core/src/lib.rs", "pub fn core() { }\n");
+
+    let output = fixture.inspect_failure("worktree");
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("cargo.metadata.failed"),
+        "malformed member was not reported: {stderr}"
+    );
+    assert!(
+        stderr.contains("crates/broken/Cargo.toml"),
+        "malformed member path missing from {stderr}"
+    );
+}
+
+#[test]
+fn reports_broken_inheritance_in_a_real_member() {
+    let fixture = Fixture::new("broken-inheritance");
+    fixture.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"crates/core\"]\nresolver = \"3\"\n\n[workspace.package]\nversion = \"0.1.0\"\n",
+    );
+    fixture.write(
+        "crates/core/Cargo.toml",
+        "[package]\nname = \"core\"\nversion.workspace = true\nedition.workspace = true\n",
+    );
+    fixture.write("crates/core/src/lib.rs", "pub fn core() {}\n");
+    fixture.commit();
+    fixture.write("crates/core/src/lib.rs", "pub fn core() { }\n");
+
+    let output = fixture.inspect_failure("worktree");
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("cargo.metadata.failed"),
+        "broken member inheritance was not reported: {stderr}"
+    );
+    assert!(
+        stderr.contains("workspace.package.edition") && stderr.contains("was not defined"),
+        "member inheritance failure lost its cause: {stderr}"
+    );
+    assert!(
+        !stderr.contains("failed to find a workspace root"),
+        "member failure matched the unowned-template class: {stderr}"
     );
 }
 
