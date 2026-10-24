@@ -1168,24 +1168,73 @@ fn parse_diagnostics(
         }
     }
     if diagnostics.is_empty() {
-        let combined = [stdout, stderr].concat();
-        let text = String::from_utf8_lossy(&combined);
-        for line in text.lines().filter(|line| !line.trim().is_empty()) {
-            let level = if line.to_ascii_lowercase().contains("warning") {
+        diagnostics = unstructured_diagnostics(stdout, stderr);
+    }
+    diagnostics
+}
+
+/// Markers that begin a diagnostic warning in unstructured output.
+///
+/// `warning:` is how rustc, clippy, cargo, nextest and a runner start a real
+/// warning; `warning[` is a coded warning such as `warning[duplicate]:`.
+const WARNING_MARKERS: [&str; 2] = ["warning:", "warning["];
+
+/// Reads unstructured output as evidence lines, classified by the diagnostic
+/// each line begins.
+///
+/// A line is a warning only when it begins a diagnostic warning: its first
+/// token, or the message after a rustc short-format `path:line:column:`
+/// position. Every other line stays note evidence, so a selector, a path or a
+/// passing nextest or libtest test name that contains `warning` is not warning
+/// evidence, and no output line is dropped.
+fn unstructured_diagnostics(stdout: &[u8], stderr: &[u8]) -> Vec<Diagnostic> {
+    let combined = [stdout, stderr].concat();
+    let text = String::from_utf8_lossy(&combined);
+    text.lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| Diagnostic {
+            level: if begins_diagnostic_warning(line) {
                 "warning"
             } else {
                 "note"
-            };
-            diagnostics.push(Diagnostic {
-                level: level.to_owned(),
-                message: line.to_owned(),
-                identifier: None,
-                catalogue_evidence: Vec::new(),
-                mapping_disposition: None,
-            });
-        }
+            }
+            .to_owned(),
+            message: line.to_owned(),
+            identifier: None,
+            catalogue_evidence: Vec::new(),
+            mapping_disposition: None,
+        })
+        .collect()
+}
+
+fn begins_diagnostic_warning(line: &str) -> bool {
+    let line = line.trim_start();
+    if has_warning_marker(line) {
+        return true;
     }
-    diagnostics
+    line.match_indices(": ").any(|(index, _)| {
+        ends_with_source_position(&line[..index]) && has_warning_marker(&line[index + 2..])
+    })
+}
+
+fn has_warning_marker(text: &str) -> bool {
+    WARNING_MARKERS.iter().any(|marker| {
+        text.get(..marker.len())
+            .is_some_and(|head| head.eq_ignore_ascii_case(marker))
+    })
+}
+
+/// Reports whether `text` ends with a `path:line:column` source position.
+fn ends_with_source_position(text: &str) -> bool {
+    let mut parts = text.rsplit(':');
+    let (Some(column), Some(line), Some(path)) = (parts.next(), parts.next(), parts.next()) else {
+        return false;
+    };
+    !path.is_empty() && is_position_number(line) && is_position_number(column)
+}
+
+fn is_position_number(value: &str) -> bool {
+    !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 fn parse_stopslop_diagnostics(stdout: &[u8], stderr: &[u8], mapping: &Mapping) -> Vec<Diagnostic> {
@@ -1412,7 +1461,7 @@ fn slash(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::{
-        EvidencePlan, EvidenceRequest, Execution, collect, mapping, parse_diagnostics,
+        EvidencePlan, EvidenceRequest, Execution, collect, execute, mapping, parse_diagnostics,
         read_verified, seal, unrun_record, write_new_json,
     };
     use std::collections::BTreeSet;
@@ -1547,6 +1596,214 @@ mod tests {
         );
         assert!(!evidence.join("lint-core.json").exists());
         assert_eq!(fs::read(evidence.join("test-a.json")).expect("after"), before);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    fn generic_levels(stdout: &[u8], stderr: &[u8]) -> Vec<(String, String)> {
+        parse_diagnostics(
+            "generic",
+            stdout,
+            stderr,
+            &mapping().expect("valid diagnostic mapping"),
+        )
+        .into_iter()
+        .map(|item| (item.level, item.message))
+        .collect()
+    }
+
+    fn all_levels_are(lines: &[(String, String)], level: &str) -> bool {
+        lines.iter().all(|(actual, _)| actual == level)
+    }
+
+    fn warning_messages(lines: &[(String, String)]) -> Vec<&str> {
+        lines
+            .iter()
+            .filter(|(level, _)| level == "warning")
+            .map(|(_, message)| message.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn passing_nextest_names_containing_warning_stay_note_evidence() {
+        let stdout = b"        PASS [   0.012s] rust-quality docker_context_warning_is_reported\n        PASS [   0.015s] rust-quality docker_context_warning_is_ignored\n------------\n     Summary [   0.123s] 147 tests run: 147 passed, 0 skipped\n";
+        let lines = generic_levels(stdout, &[]);
+        assert_eq!(lines.len(), 4, "every output line stays evidence: {lines:?}");
+        assert!(all_levels_are(&lines, "note"), "unexpected warnings: {lines:?}");
+        assert!(
+            lines
+                .iter()
+                .any(|(_, message)| message.contains("docker_context_warning_is_reported"))
+        );
+    }
+
+    #[test]
+    fn passing_libtest_names_containing_warning_stay_note_evidence() {
+        let stdout = b"running 147 tests\ntest docker_context_warning_is_reported ... ok\ntest docker_context_warning_is_ignored ... ok\n\ntest result: ok. 147 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s\n";
+        let lines = generic_levels(stdout, &[]);
+        assert_eq!(lines.len(), 4, "every output line stays evidence: {lines:?}");
+        assert!(all_levels_are(&lines, "note"), "unexpected warnings: {lines:?}");
+    }
+
+    #[test]
+    fn diagnostic_warning_prefixes_are_warning_evidence() {
+        let stdout = b"warning: unused variable: `x`\nwarning[duplicate]: found 2 duplicate entries\nsrc/lib.rs:2:17: warning: unused variable: `x`\nwarning: 1 warning emitted\nWarning: can't set `unstable_features`\n";
+        let lines = generic_levels(stdout, &[]);
+        assert_eq!(lines.len(), 5, "every output line stays evidence: {lines:?}");
+        assert_eq!(
+            warning_messages(&lines),
+            [
+                "warning: unused variable: `x`",
+                "warning[duplicate]: found 2 duplicate entries",
+                "src/lib.rs:2:17: warning: unused variable: `x`",
+                "warning: 1 warning emitted",
+                "Warning: can't set `unstable_features`",
+            ]
+        );
+    }
+
+    #[test]
+    fn structured_compiler_events_classify_from_their_level() {
+        let stdout = [
+            r#"{"reason":"compiler-message","message":{"level":"warning","message":"unused import: `std::fmt`","code":{"code":"unused_imports"}}}"#,
+            r#"{"reason":"compiler-message","message":{"level":"note","message":"the lint level is defined here","code":null}}"#,
+            r#"{"reason":"compiler-message","message":{"level":"warning","message":"unused variable: `y`","code":null}}"#,
+            r#"{"reason":"build-finished","success":true}"#,
+        ]
+        .join("\n");
+        let diagnostics = parse_diagnostics(
+            "cargo_json",
+            stdout.as_bytes(),
+            &[],
+            &mapping().expect("valid diagnostic mapping"),
+        );
+        let levels: Vec<_> = diagnostics
+            .iter()
+            .map(|item| item.level.as_str())
+            .collect();
+        assert_eq!(levels, ["warning", "note", "warning"]);
+        let identifiers: Vec<_> = diagnostics
+            .iter()
+            .map(|item| item.identifier.as_deref())
+            .collect();
+        assert_eq!(identifiers, [Some("unused_imports"), None, None]);
+    }
+
+    #[test]
+    fn structured_stream_without_compiler_events_ignores_test_names() {
+        let stdout = b"{\"reason\":\"build-finished\",\"success\":true}\n        PASS [   0.012s] rust-quality docker_context_warning_is_reported\ntest docker_context_warning_is_ignored ... ok\n";
+        let diagnostics = parse_diagnostics(
+            "cargo_json",
+            stdout,
+            &[],
+            &mapping().expect("valid diagnostic mapping"),
+        );
+        assert_eq!(diagnostics.len(), 3, "raw test output stays evidence");
+        assert!(
+            diagnostics.iter().all(|item| item.level == "note"),
+            "unexpected warnings: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn runner_warnings_on_stderr_remain_warning_evidence() {
+        let stdout = b"        PASS [   0.012s] rust-quality docker_context_warning_is_reported\n";
+        let lines = generic_levels(stdout, b"warning: retrying without the cache\n");
+        assert_eq!(lines.len(), 2, "every output line stays evidence: {lines:?}");
+        assert_eq!(
+            warning_messages(&lines),
+            ["warning: retrying without the cache"]
+        );
+    }
+
+    #[test]
+    fn mixed_output_keeps_only_real_warnings() {
+        let stdout = b"        PASS [   0.012s] rust-quality docker_context_warning_is_reported\ntest docker_context_warning_is_ignored ... ok\nwarning: unused import: `std::fmt`\ntest result: ok. 147 passed; 0 failed\n";
+        let lines = generic_levels(stdout, b"warning: 1 test was skipped\n");
+        assert_eq!(lines.len(), 5, "every output line stays evidence: {lines:?}");
+        assert_eq!(
+            warning_messages(&lines),
+            [
+                "warning: unused import: `std::fmt`",
+                "warning: 1 test was skipped",
+            ]
+        );
+    }
+
+    #[test]
+    fn unstructured_status_follows_diagnostics_and_exit_status() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("clock")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "northstar-warning-status-{}-{nonce}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&root).expect("status fixture root");
+        let mapping = mapping().expect("valid diagnostic mapping");
+        let run = |id: &str, script: &str| {
+            execute(
+                &root,
+                &root.join("records"),
+                id,
+                Execution::Command {
+                    program: "sh".to_owned(),
+                    args: vec!["-c".to_owned(), script.to_owned()],
+                    format: "generic".to_owned(),
+                },
+                &mapping,
+            )
+            .expect("command output is captured as evidence")
+        };
+        let warnings = |outcome: &super::ExecutionOutcome| {
+            outcome
+                .diagnostics
+                .iter()
+                .filter(|item| item.level == "warning")
+                .count()
+        };
+
+        let passing = run(
+            "passing-test-name",
+            "printf '        PASS [   0.012s] docker_context_warning_is_reported\\n'",
+        );
+        assert_eq!(passing.status, "passed");
+        assert_eq!(passing.failure_stage, "none");
+        assert_eq!(passing.exit_status, Some(0));
+        assert_eq!(warnings(&passing), 0);
+
+        let warned = run("runner-warning", "printf 'warning: unused import\\n'");
+        assert_eq!(warned.status, "warning");
+        assert_eq!(warned.exit_status, Some(0));
+        assert_eq!(warnings(&warned), 1);
+
+        let failed = run(
+            "failing-output",
+            "printf '        PASS [   0.012s] docker_context_warning_is_reported\\nwarning: unused import\\n'; exit 7",
+        );
+        assert_eq!(failed.status, "failed");
+        assert_eq!(failed.exit_status, Some(7));
+        assert_eq!(failed.failure_stage, "source");
+        assert_eq!(warnings(&failed), 1, "failure keeps its true warning");
+
+        let startup = execute(
+            &root,
+            &root.join("records"),
+            "missing-runner",
+            Execution::Command {
+                program: "northstar-definitely-missing-command".to_owned(),
+                args: Vec::new(),
+                format: "generic".to_owned(),
+            },
+            &mapping,
+        )
+        .expect("startup failure is captured as evidence");
+        assert_eq!(startup.status, "unavailable");
+        assert_eq!(startup.failure_stage, "startup");
+        assert_eq!(startup.exit_status, None);
+        let diagnostic = startup.diagnostics.first().expect("startup diagnostic");
+        assert_eq!(diagnostic.level, "error");
+        assert_eq!(startup.diagnostics.len(), 1);
         let _ = fs::remove_dir_all(&root);
     }
 }

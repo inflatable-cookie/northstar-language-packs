@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+- Release `@northstar/rust-quality` `0.2.4`. The installed-route proof launches
+named and `skill run` Effigy children from shell code, so its selector and the
+root package-identity selector that shells into the same proof declare
+`durable = true`; the declared capability makes their QA groups durable too.
+Both catalogues raise `minimum_effigy_version` to `0.15.0`, the Effigy release
+line that declares durable tasks, so a runner without it refuses plainly
+instead of failing to parse the catalogue. That Effigy floor is the
+compatibility change behind the version bump; workflows, declaration, package
+shape and the Northstar core range are unchanged. The repair produces a
+replacement package-tree, listing and manifest identity.
+
+- Repair `@northstar/rust-quality` `0.2.3` evidence classification. Unstructured
+output is now classified by the diagnostic each line begins instead of by any
+`warning` word inside it: a line is a warning only when its first token is
+`warning:` or a coded `warning[...]`, or when `warning:` follows a rustc
+short-format `path:line:column:` position. A passing nextest or libtest line
+whose test name contains `warning` therefore stays `note` evidence and no
+longer turns a clean test record into a warning, while compiler, cargo, runner
+and stderr warnings, `failed` exit precedence and `unavailable` startup
+failures are unchanged and no output line is dropped. New engine fixtures cover
+passing nextest and standard test lines with warning identifiers, compiler and
+runner warning prefixes, supported structured events, stderr warnings, mixed
+output, nonzero exits and startup failures. The repair produces a replacement
+package identity inside the `0.2.4` change above; workflows, declaration and
+the Northstar core range are unchanged.
+
 - Repair `@northstar/rust-quality` `0.2.3` everyday closeout identity. A dirty
 worktree closeout binds `source_identity` to the bytes it tested: every dirty
 path with its Git status and worktree content, including staged, working,

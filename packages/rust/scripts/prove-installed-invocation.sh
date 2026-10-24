@@ -212,7 +212,7 @@ finally:
 
 with open(os.path.join(root, 'northstar-package.json'), 'rb') as fp:
     manifest_digest = f'sha256:{hashlib.sha256(fp.read()).hexdigest()}'
-expected_manifest = 'sha256:4c88e2213937a8ec1c9025c10c1187173e25476b3d8b02cc5d7a18da31350334'
+expected_manifest = 'sha256:be2f41b4cab44c7b4acc524a6d49e8e6a01bd95c20aeca0cead129b5842fa4e5'
 assert manifest_digest == expected_manifest, f'Manifest digest mismatch: {manifest_digest} != {expected_manifest}'
 " "$installed" "$expected_tree"
 
@@ -318,14 +318,14 @@ ADAPTED_EXPECTED = {
     'references/language-quality/rust/tool-bootstrap.md': 'sha256:a8d89c616d41383e409588831c30724f42f9e3cd6ccc0e7c0216bf3ff9b54e4c',
     'references/language-quality/rust/audit-recording.md': 'sha256:69fc48ba6838447083f1d0e4661707a081867bbb8e64f9ad2b09c607b545e9de',
     'references/language-quality/rust/closeout.schema.json': 'sha256:25f93cf0abb5a59fb26a610fd6f0f88cd39288d6e00a0f498533f6f854b300db',
-    'references/language-quality/rust/evidence-collection.md': 'sha256:dd08e1f17765fa4ec72154f8959a20da0d4cf0149bf2f7a8bfbfb73d4efb2331',
+    'references/language-quality/rust/evidence-collection.md': 'sha256:e43b64ad78404137b776638397bc628f2afd63df08a5d891f227ac64ce181907',
     'references/modes/rust-quality-audit.md': 'sha256:6be8d206303f47de9b7ccf5983238cd7bfd364ea6859c87c545f1e4527ba5f62',
     'references/modes/rust-quality-authoring.md': 'sha256:8cbdc3d1abebc8793ec9294ca4d49fcef6a3410f38134ce807d89b3e90ed0943',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:7fc39dd05d120a01a84c3df88f56c87132742a09cc60bd0bcc47f879e305db86',
+    'scripts/check-rust-quality.rhai': 'sha256:77f158b770b3fdf7838c8e9775b6758ae287ec99e37b70adac09495360233d81',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
-    'tools/rust-quality/src/evidence.rs': 'sha256:706dc1038d5acce2890c26b2135762e93d4a7c4cb3229a01603a6a971fd978b4',
+    'tools/rust-quality/src/evidence.rs': 'sha256:3c355998759f4bfc35511031c878008f78a4373997aaabe52162c061f010c700',
     'tools/rust-quality/src/lib.rs': 'sha256:337832a0fef342aafbb81574722e73fa3afb99979d8e86313b9e753fb5960031',
     'tools/rust-quality/src/main.rs': 'sha256:ea9c2a548f057e5e7e4cdfb0e072aaa1c77a590ffc01bcdc9ce7718bf8a559b9',
     'tools/rust-quality/src/plan.rs': 'sha256:153e2185b330c68deb0cc7ca4e5e3fda7644ba07693d14f97f14a20fb86743b9',
@@ -722,7 +722,7 @@ if [ -e "$installed/tools/rust-quality/target" ]; then
     echo "[rust-quality:installed-route] cargo wrote target/ into the installed package" >&2
     exit 1
 fi
-require_file_contains "$transcripts/cargo-test.txt" "5 passed" "unit test count"
+require_file_contains "$transcripts/cargo-test.txt" "13 passed" "unit test count"
 require_file_contains "$transcripts/cargo-test.txt" "40 passed" "cli test count"
 require_file_contains "$transcripts/cargo-test.txt" "2 passed" "detectors test count"
 
@@ -738,8 +738,8 @@ then
 fi
 require_file_contains "$receipt_path" "\"current\": true" "probe receipt current"
 require_file_contains "$receipt_path" "\"schema_version\": \"northstar.rust-quality.install.v1\"" "probe receipt schema"
-require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"7aa69cb9e020d9606559aef66566081a3563ac7c2f5886fff77da3d483e19011\"" "probe embedded payload hash"
-require_file_contains "$receipt_path" "\"source_payload_sha256\": \"7aa69cb9e020d9606559aef66566081a3563ac7c2f5886fff77da3d483e19011\"" "probe source payload hash"
+require_file_contains "$receipt_path" "\"embedded_payload_sha256\": \"9e884174af73843988e5e11608f9e4c0cedd99c76513a5db29b1cd5cedcb47e1\"" "probe embedded payload hash"
+require_file_contains "$receipt_path" "\"source_payload_sha256\": \"9e884174af73843988e5e11608f9e4c0cedd99c76513a5db29b1cd5cedcb47e1\"" "probe source payload hash"
 
 # Tamper negatives: mutating source must cause verify-install to fail closed
 tampered="$work/tampered-tool"
