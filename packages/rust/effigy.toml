@@ -6,6 +6,10 @@ alias = "rust-quality"
 
 [tasks]
 "check:rust-quality" = [{ rhai = "scripts/check-rust-quality.rhai" }]
+# Nonmutating shell format check for this package's maintained shell sources.
+# Rhai sources have no maintained formatter, so the repository `format:check`
+# declares that limitation. Requires shfmt (mvdan/sh v3) on PATH.
+"format:check" = "shfmt --diff --indent 4 --language-dialect posix scripts/prove-installed-invocation.sh scripts/self-check.sh"
 "rust-quality:setup" = [{ rhai = "scripts/rust-quality-setup.rhai" }]
 "test:rust-quality-setup" = [{ task = "rust-quality:setup self-test" }]
 "test:rust-quality-engine" = "cargo test --manifest-path tools/rust-quality/Cargo.toml"

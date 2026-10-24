@@ -25,6 +25,7 @@
     ],
     "optional_effigy_selectors": [
       "check:rust-quality",
+      "format:check",
       "rust-quality:setup",
       "test:rust-quality-setup",
       "test:rust-quality-engine",

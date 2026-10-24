@@ -4,7 +4,7 @@ This repository is the public source and release-evidence home for official
 Northstar language-quality packages. Two packages are complete source and are
 not yet promoted to the Northstar registry:
 
-- `@northstar/typescript-quality` `0.2.2` in `packages/typescript`
+- `@northstar/typescript-quality` `0.2.3` in `packages/typescript`
 - `@northstar/rust-quality` `0.2.4` in `packages/rust`
 
 Both are compatible with Northstar core `>=0.2.0 <1.0.0`. Registry promotion and

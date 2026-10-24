@@ -1,16 +1,20 @@
 [manifest]
-minimum_effigy_version = "0.12.0"
+minimum_effigy_version = "0.15.0"
 
 [catalog]
 alias = "typescript-quality"
 
 [tasks]
 "check:typescript-quality" = [{ rhai = "scripts/check-typescript-quality.rhai" }]
+# Nonmutating shell format check for this package's maintained shell sources.
+# Rhai sources have no maintained formatter, so the repository `format:check`
+# declares that limitation. Requires shfmt (mvdan/sh v3) on PATH.
+"format:check" = "shfmt --diff --indent 4 --language-dialect posix scripts/prove-installed-invocation.sh scripts/self-check.sh"
 "typescript-quality:setup" = [{ rhai = "scripts/typescript-quality-setup.rhai" }]
 "typescript-quality:record" = [{ rhai = "scripts/typescript-quality-recorder.rhai" }]
 "test:typescript-quality-setup" = [{ task = "typescript-quality:setup self-test" }]
 "test:typescript-quality-recorder" = [{ task = "typescript-quality:record self-test" }]
-"test:typescript-quality-installed-route" = "scripts/prove-installed-invocation.sh"
+"test:typescript-quality-installed-route" = { run = "scripts/prove-installed-invocation.sh", durable = true }
 "qa:docs:paths" = "effigy docs check paths SKILL.md northstar-package.json effigy.toml scripts/self-check.sh scripts/prove-installed-invocation.sh references/modes/typescript-quality-audit.md"
 "qa:docs:workflow" = "effigy docs check contains SKILL.md --require 'Do not activate from ordinary coding' --require 'Thin explicit entrypoint'"
 "qa:docs" = [

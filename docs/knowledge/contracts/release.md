@@ -45,11 +45,16 @@ file. Current values are in
 - The identities recorded in
   [architecture](../architecture.md#packages) match the script.
 - The installed-route proof launches named and `skill run` Effigy children from
-  shell code. Its selector and the root `qa:packages:identities` selector that
-  shells into it declare `durable = true` (Effigy contract 052 §3.1), which
-  makes their QA groups durable too. Both catalogues therefore require Effigy
-  `0.15.0`, and both selectors run plainly: no `--run-id` or capability
-  workaround.
+  shell code. Every selector that runs it declares `durable = true` (Effigy
+  contract 052 §3.1): `test:rust-quality-installed-route` and
+  `test:typescript-quality-installed-route` in the package catalogues, and the
+  root `qa:packages:identities` selector that shells into the rust proof. Static
+  task references propagate the capability, so their QA groups are durable too.
+  Every catalogue therefore requires Effigy `0.15.0`, and every selector runs
+  plainly: no `--run-id` or capability workaround.
+- The TypeScript proof's `durable = true` declaration is the compatibility
+  change behind its `0.2.3` version bump. Rust carries the same declaration and
+  floor from `0.2.4`.
 - The installed-route proof reads the pinned Northstar source from
   `NORTHSTAR_SOURCE` or its third argument. Clone `inflatable-cookie/northstar`
   into a scratch checkout, check out `69e4d5d`, and point `NORTHSTAR_SOURCE` at

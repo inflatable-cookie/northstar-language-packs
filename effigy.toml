@@ -21,6 +21,10 @@ alias = "northstar-language-packs"
   { task = "qa:northstar:agent-contract" },
   { task = "qa:northstar:front-door" },
 ]
+# Nonmutating format coverage for maintained shell sources, with the Rhai gap
+# declared. Needs shfmt (mvdan/sh v3) on PATH, so it stays out of `qa`.
+"format:check" = [{ rhai = "scripts/check-format.rhai" }]
+"test:format-check" = [{ task = "format:check self-test" }]
 "qa:packages:identities" = { run = "scripts/verify-package-identities.sh", durable = true }
 "qa:packages" = [
   { task = "qa:packages:identities" },

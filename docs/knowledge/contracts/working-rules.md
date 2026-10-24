@@ -32,3 +32,15 @@ its own source PRs.
 integrity, and the package release identities in
 `scripts/verify-package-identities.sh`. Package work must also prove
 package-scoped source/install parity and the change's negative oracle.
+
+Format coverage for maintained package sources is a separate selector because
+it depends on a host tool. `effigy format:check` at the root, and the same
+selector in each package catalogue, run `shfmt` (mvdan/sh v3) in `--diff` mode
+under `--indent 4 --language-dialect posix`: they report unformatted sources and
+never rewrite a file, and they fail closed when `shfmt` is absent. Rhai sources
+have no maintained formatter, so the root selector declares that bounded
+limitation instead of inventing formatting semantics. The root selector also
+fails when a maintained shell or Rhai source is undeclared or when a package
+catalogue stops naming its own shell files, and `effigy test:format-check`
+proves a malformed fixture fails, a formatted control passes, and neither file
+is rewritten.

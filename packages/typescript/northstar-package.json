@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "package_id": "@northstar/typescript-quality",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "kind": "language-quality",
   "compatible_core_range": ">=0.2.0 <1.0.0",
   "supported_languages": [
@@ -25,6 +25,7 @@
     ],
     "optional_effigy_selectors": [
       "check:typescript-quality",
+      "format:check",
       "typescript-quality:setup",
       "typescript-quality:record",
       "test:typescript-quality-setup",

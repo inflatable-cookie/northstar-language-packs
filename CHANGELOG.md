@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+- Release `@northstar/typescript-quality` `0.2.3`. The installed-route proof
+launches named `skill run` Effigy children from shell code, so its selector
+declares `durable = true` (Effigy contract 052 §3.1) like the rust proof: a
+foreground parent cannot acquire the late durable capability those children
+need, and a declared capability selects durability for the whole tree before
+go. Static task references propagate it, so the package QA group is durable too;
+nested capability and admission inheritance are unchanged and no capability or
+admission variable is unset. The catalogue raises `minimum_effigy_version` from
+`0.12.0` to `0.15.0`, the Effigy release line that declares durable tasks, so a
+runner without it refuses plainly instead of failing to parse the catalogue.
+That Effigy floor is the compatibility change behind the version bump;
+workflows, declaration, package shape and the Northstar core range are
+unchanged. The repair produces a replacement package-tree, listing and manifest
+identity.
+
+- Add covering nonmutating format checks for maintained package sources. The
+root `effigy format:check` selector, the same selector in both package
+catalogues, and the repository `format:check` inventory check maintained shell
+sources with `shfmt` (mvdan/sh v3) in `--diff` mode under the declared
+`--indent 4 --language-dialect posix` style, so they report unformatted sources
+and never rewrite a file. They fail closed when `shfmt` is absent, and the root
+selector also fails when a maintained shell or Rhai source is undeclared or when
+a package catalogue stops naming its own shell files. Rhai has no maintained
+formatter, so the root selector declares that bounded limitation instead of
+claiming format coverage it cannot prove. `effigy test:format-check` proves a
+finite malformed fixture fails, its formatted control passes, and neither file
+is rewritten. Both installed-route proof scripts now carry the declared shell
+style, and each manifest gains `format:check` as an optional selector. The
+repair produces replacement package-tree, listing and manifest identities;
+versions, workflows, declaration and the Northstar core range are unchanged.
+
 - Release `@northstar/rust-quality` `0.2.4`. The installed-route proof launches
 named and `skill run` Effigy children from shell code, so its selector and the
 root package-identity selector that shells into the same proof declare
