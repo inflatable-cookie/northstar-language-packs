@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+- Route the maintained Rust engine tests and the installed-route proof through
+`oxide`. `effigy test:rust-quality-engine` now runs `oxide test` with the same
+manifest argument, so the intermediates use Oxide's shared slot while final
+outputs stay in `tools/rust-quality/target`; there is no `:cargo` escape
+selector, and the package check rejects one reappearing with a plain-Cargo
+engine route as its negative fixture. The installed-route proof's pinned
+producer build, probe install, installed engine suite and the manifest's own
+tool recipe run under `oxide exec` with their private `--target-dir` unchanged,
+so final outputs stay in the proof's own directories and the intermediates use
+the held slot; each throwaway copy carries a real empty `target` as Oxide's
+documented opt-out from permanent-drive output adoption for a checkout that is
+not a Git work tree, and the proof still rejects anything there but Cargo's
+zero-byte lock placeholders, so the installed payload cannot collect build
+output. The declared tool recipe stays a `cargo install` declaration that
+Northstar's lifecycle owns and runs, the engine's own `cargo metadata` calls and
+its `cargo_native`/`cargo_json` evidence names are unchanged, and the detector
+fixtures still run their own pinned-toolchain Cargo. The engine's CLI fixtures
+now give each fixture its own `CARGO_TARGET_DIR` under
+`<fixture>/.git/northstar-test-target` and drop the inherited build directory:
+Oxide exports one shared Cargo build directory, where Cargo gives two crates
+with the same package name and version one unit, so unrelated fixtures could
+otherwise alias and a passing fixture hide a failing one. The escapes are
+Effigy's machine-wide `[programs.oxide] fallback = "cargo"` in the user config
+or running Cargo by hand; nothing falls back silently. The repair produces
+replacement package-tree and listing identities; the manifest bytes, version,
+workflows, declaration and the Northstar core range are unchanged.
+
 - Release `@northstar/typescript-quality` `0.2.3`. The installed-route proof
 launches named `skill run` Effigy children from shell code, so its selector
 declares `durable = true` (Effigy contract 052 §3.1) like the rust proof: a

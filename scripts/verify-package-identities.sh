@@ -76,10 +76,10 @@ rust_pkg = os.path.join(repo_root, 'packages/rust')
 rust_count, rust_tree_digest = compute_spec_034_tree_digest(rust_pkg)
 assert rust_count == 60, f'Expected 60 Rust package files, got {rust_count}'
 
-expected_rust_tree = 'sha256:7d5ec03d76c7e8044e52184fec8cae62810d0e17a12762bb574ceb30d416d52f'
+expected_rust_tree = 'sha256:1703d0134f158cb1b2c20fb726181c1be471436e8056931408e57ab6e2d213e9'
 assert rust_tree_digest == expected_rust_tree, f'Rust Spec-034 tree digest mismatch: {rust_tree_digest} != {expected_rust_tree}'
 
-expected_rust_listing = 'sha256:c7f23572ecfe9414847c431cba1696f7cf7a817d552cbdff8d187ff7ca8dbcb8'
+expected_rust_listing = 'sha256:a7b5a6169c23bb6dafb19b0a32440d8cf30bce70c4b1f945b7a0891a459af2ad'
 rust_listing = compute_listing_digest(rust_pkg)
 assert rust_listing == expected_rust_listing, f'Rust listing digest mismatch: {rust_listing} != {expected_rust_listing}'
 
@@ -131,4 +131,4 @@ print('Repository package release identities: OK')
 " "$root"
 
 # 3. Wire external expected tree binding into package proof
-"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:7d5ec03d76c7e8044e52184fec8cae62810d0e17a12762bb574ceb30d416d52f"
+"$root/packages/rust/scripts/prove-installed-invocation.sh" "$root/packages/rust" "sha256:1703d0134f158cb1b2c20fb726181c1be471436e8056931408e57ab6e2d213e9"
