@@ -59,6 +59,15 @@ file. Current values are in
   `NORTHSTAR_SOURCE` or its third argument. Clone `inflatable-cookie/northstar`
   into a scratch checkout, check out `69e4d5d`, and point `NORTHSTAR_SOURCE` at
   it. A sibling checkout is only a local fallback; a Queue worker has none.
+- Ordinary Rust routes lease Cargo through Oxide: `effigy
+  test:rust-quality-engine` runs `oxide test`, and the installed-route proof's
+  producer build, probe install, installed engine suite and declared tool
+  recipe run under `oxide exec` because each chooses its own `--target-dir`.
+  Nothing falls back to Cargo silently; the escape is the machine-wide
+  `[programs.oxide] fallback = "cargo"` or running Cargo by hand. Each
+  throwaway copy keeps a real empty `target` as Oxide's output-adoption opt-out
+  for a non-Git checkout, and the proof rejects anything there but Cargo's
+  zero-byte lock placeholders.
 
 ## Roll back
 

@@ -86,10 +86,53 @@ Current immutable identities:
 | Package | Files | Package-tree digest | Manifest digest |
 | --- | --- | --- | --- |
 | `@northstar/typescript-quality` | 21 | `sha256:0ccb43a6bd0e51c1639255df74d415d639bbe76888e83158dc6e5c2ae87c413c` | `sha256:98f26f0d1bdf3c2a403f294075248f5fb45652da478997d44f0dd76b43eb09e7` |
-| `@northstar/rust-quality` | 60 | `sha256:7d5ec03d76c7e8044e52184fec8cae62810d0e17a12762bb574ceb30d416d52f` | `sha256:bd45c822c16cad96dec399286674ce2a142349ae258c27759f5c7c525b6ba162` |
+| `@northstar/rust-quality` | 60 | `sha256:1703d0134f158cb1b2c20fb726181c1be471436e8056931408e57ab6e2d213e9` | `sha256:bd45c822c16cad96dec399286674ce2a142349ae258c27759f5c7c525b6ba162` |
 
 `scripts/verify-package-identities.sh` is the oracle for these values. It fails
 when a package file changes without the identity being updated.
+
+## Rust routes
+
+Ordinary Rust routes call `oxide` (Tom's 2026-10-25 ruling, recorded in Oxide's
+`docs/knowledge/contracts/workflow.md`, "Switching an existing project"): the
+engine selector is `oxide test --manifest-path tools/rust-quality/Cargo.toml`.
+Intermediates use Oxide's shared slot and final outputs stay in
+`tools/rust-quality/target`. There is no `:cargo` escape selector. A missing or
+broken `oxide` fails loudly; the escape is Effigy's machine-wide
+`[programs.oxide] fallback = "cargo"` in the user config, or running the same
+Cargo command by hand. This repository has no CI workflow that calls these
+selectors, so no CI-aware branch exists to keep in step.
+
+The installed-route proof is a driver that chooses its own `--target-dir`, so
+every Cargo command it runs goes through `oxide exec` with its arguments
+unchanged: the pinned producer build, the probe install, the installed engine
+suite and the manifest's own tool recipe. Final outputs stay in the proof's
+private target directory and intermediates use the held slot. Each throwaway
+copy carries a real empty `target` directory, which is Oxide's documented opt-out
+from permanent-drive output adoption for a checkout that is not a Git work tree;
+the proof still rejects any file there but Cargo's zero-byte lock placeholders,
+so build output cannot land in the installed payload.
+
+Oxide exports one shared Cargo build directory to every leased command, and
+Cargo gives two crates with the same package name and version one unit in a
+shared build directory. The engine's CLI fixtures therefore give each fixture
+its own `CARGO_TARGET_DIR` under `<fixture>/.git/northstar-test-target` and drop
+the inherited build directory, so a passing fixture cannot hide a failing one
+and the fixture worktree stays clean.
+
+Cargo stays where it is the subject, not the route:
+
+- the declared tool recipe is a `cargo install` declaration that Northstar's
+  lifecycle owns and runs; the proof executes that recipe verbatim under
+  `oxide exec` and does not rewrite it.
+- the engine runs `cargo metadata` as its own behaviour, and its `cargo_native`
+  origin and `cargo_json` format names describe a captured evidence protocol,
+  not an execution route. Its evidence capture also runs the consumer's
+  requested Cargo command, which is product behaviour.
+- the detector fixtures run `rustup run <toolchain> cargo clippy` and `cargo doc`
+  with their own target directory; changing them would change what they test.
+- the audit-only `stopslop` install in `tool-bootstrap.md` is a consumer step on
+  a host this repository does not build on.
 
 ## Consumer boundary
 

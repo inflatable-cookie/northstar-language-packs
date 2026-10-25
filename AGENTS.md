@@ -33,10 +33,19 @@ Commands go through Effigy from the repository root:
 Package checks run from `packages/rust` through its own catalogue:
 `effigy check:rust-quality`, `effigy format:check`,
 `effigy test:rust-quality-setup`, `effigy test:rust-quality-engine`, and
-`effigy test:rust-quality-installed-route`. The engine suite stays on plain
-Cargo: its fixtures run Cargo themselves, and `oxide`'s inherited target
-directory lets same-named fixtures share one Cargo unit, which changes test
-results.
+`effigy test:rust-quality-installed-route`. Every ordinary Rust route calls
+`oxide`, so the intermediates use its shared slot while final outputs stay in
+`tools/rust-quality/target`. The detector fixtures inside the engine suite
+still run Cargo themselves, and the installed-route proof runs its
+private-target builds under `oxide exec` because they choose their own
+`--target-dir`; the manifest's declared tool recipe is executed verbatim there
+and stays Northstar's to run. The engine's CLI fixtures build into their own
+`.git/northstar-test-target`, because Oxide exports one shared Cargo build
+directory and Cargo gives two crates with the same package name and version one
+unit there. No `:cargo` escape selector exists: a missing or broken `oxide`
+fails loudly, and the escape is Effigy's machine-wide
+`[programs.oxide] fallback = "cargo"` in the user config or running the same
+Cargo command by hand.
 
 Format checks run `shfmt` (mvdan/sh v3) in `--diff` mode under
 `--indent 4 --language-dialect posix`, report, and never rewrite a file. They

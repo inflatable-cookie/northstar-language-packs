@@ -493,6 +493,10 @@ fn validate_setup_surface(package_root) {
     let catalog = fs::read_file(path::join(package_root, "effigy.toml"));
     require(catalog.contains("rust-quality:setup") && catalog.contains("test:rust-quality-setup"),
         "skill-local catalog lacks Rust setup selectors");
+    require(catalog.contains("oxide test --manifest-path tools/rust-quality/Cargo.toml"),
+        "Rust engine route does not run through oxide");
+    require(!catalog.contains(":cargo\"") && !catalog.contains("= \"cargo "),
+        "Rust catalog routes an ordinary command through plain cargo");
     require(authoring.contains("rust-quality:setup"),
         "authoring mode does not self-activate missing setup");
     require(audit.contains("rust-quality:setup"),
@@ -585,6 +589,13 @@ fn validate_audit_surface(package_root) {
     for operation in ["inspect", "plan", "validate-ledger", "init", "assess", "extend", "collect", "complete", "finalize", "closeout", "verify-install"] {
         require(tool.contains(operation), "Rust quality tool lacks " + operation);
     }
+    // Oxide exports one shared Cargo build directory, where Cargo gives two
+    // crates with the same package name and version one unit. Fixtures that
+    // kept inheriting it could alias each other and hide a real failure.
+    let cli_tests = fs::read_file(path::join(tool_root, "tests/cli.rs"));
+    require(cli_tests.contains(".git/northstar-test-target") &&
+        cli_tests.contains("env_remove(\"CARGO_BUILD_BUILD_DIR\")"),
+        "Rust engine fixtures do not isolate their Cargo target directory");
     require(!catalog.contains("rust-quality:record") && !catalog.contains("test:rust-quality-recorder"),
         "removed Effigy-hosted Rust recorder remains routed");
     let mapping = json::read_file(path::join(tool_root, "assets/diagnostic-mapping.json"));
@@ -1060,11 +1071,18 @@ fn test_self_check_wrapper(package_root) {
         proof_text.contains("rust-quality:setup") &&
         proof_text.contains("DECOY-NORTHSTAR-SETUP-RAN"),
         "installed-invocation proof does not exercise the public skill-run surface and negative fixtures");
-    require(proof_text.contains("--path \"$installed/tools/rust-quality\" --target-dir") &&
+    require(proof_text.contains("command -v oxide") &&
+        proof_text.contains("oxide exec --manifest-path \"$installed/tools/rust-quality/Cargo.toml\"") &&
+        proof_text.contains("oxide exec --manifest-path \"$producer_src/rust-quality/Cargo.toml\"") &&
+        proof_text.contains("--path \"$installed/tools/rust-quality\" --target-dir") &&
         proof_text.contains("cargo test --manifest-path \"$installed/tools/rust-quality/Cargo.toml\" --target-dir") &&
         !proof_text.contains("\"$installed/tools/rust-quality\" --root") &&
         !proof_text.contains("tools/rust-quality/Cargo.toml\"\n"),
-        "installed-invocation proof builds the installed crate without --target-dir");
+        "installed-invocation proof builds the installed crate without --target-dir or without an oxide lease");
+    require(proof_text.split("oxide exec --manifest-path").len() == 5,
+        "installed-invocation proof does not lease every Cargo driver through oxide exec");
+    require(proof_text.contains("require_no_build_output"),
+        "installed-invocation proof lost its build-output leak oracle");
     require(proof_text.contains("declared tool") && proof_text.contains("--everyday-authoring"),
         "installed-invocation proof does not exercise the declared tool build and the everyday opt-in");
 
@@ -1094,6 +1112,25 @@ fn test_self_check_wrapper(package_root) {
             "non-executable wrapper failed for the wrong reason: " + error);
     }
     require(nonexec_rejected, "non-executable self-check wrapper unexpectedly passed");
+
+    // Negative: the ordinary engine route must not slip back to plain Cargo.
+    let catalog_path = path::join(package_root, "effigy.toml");
+    let original_catalog = fs::read_file(catalog_path);
+    let plain_cargo = str::replace(original_catalog,
+        "\"test:rust-quality-engine\" = \"oxide test",
+        "\"test:rust-quality-engine\" = \"cargo test");
+    require(plain_cargo != original_catalog, "plain-Cargo engine route fixture did not change");
+    fs::write_file(catalog_path, plain_cargo);
+    let route_rejected = false;
+    try {
+        validate_setup_surface(package_root);
+    } catch (error) {
+        route_rejected = true;
+        require(error.to_string().contains("does not run through oxide"),
+            "plain-Cargo engine route rejected for wrong reason: " + error);
+    }
+    fs::write_file(catalog_path, original_catalog);
+    require(route_rejected, "plain-Cargo engine route unexpectedly passed");
 }
 
 require(type_of(catalog_root) == "string" && catalog_root.len() > 0,
@@ -1147,4 +1184,4 @@ for filename in ["catalogue.json", "strict-authoring.json", "strict-audit.json"]
     require(!text.contains("answer_key") && !text.contains("expected_findings"), filename + " leaks prototype oracle data");
 }
 
-log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 60-file inventory, 11 catalogue/manifest/bootstrap, declared tool recipe, 7 grammar, 1 existence, and 1 exact-command negative paths, everyday opt-in and explicit audit)");
+log("Northstar Rust quality package: OK (7 rules, 14 qualified detector candidates, 60-file inventory, 11 catalogue/manifest/bootstrap, declared tool recipe, 7 grammar, 1 existence, 1 oxide-route, and 1 exact-command negative paths, everyday opt-in and explicit audit)");

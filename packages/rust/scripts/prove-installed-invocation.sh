@@ -7,6 +7,17 @@
 # only a local fallback, so a Queue worker points NORTHSTAR_SOURCE at a copy it
 # made in its own temporary directory.
 # Uses a throwaway installed copy, cross-boundary engine migration, and a decoy consumer.
+#
+# Rust routing: the Cargo commands this proof drives itself run under
+# `oxide exec`, because each chooses its own `--target-dir` and must keep final
+# outputs in that private directory while its intermediates use Oxide's shared
+# slot. The manifest's declared tool recipe is expanded verbatim and executed
+# the same way; Northstar's lifecycle owns that recipe and runs it as plain
+# Cargo. The engine's own evidence capture keeps running the consumer's
+# requested Cargo command, because that is product behaviour. A missing `oxide`
+# fails loudly here: the escape is Effigy's machine-wide
+# `[programs.oxide] fallback = "cargo"` in the user config or running the same
+# Cargo command by hand, never a silent fallback.
 set -eu
 
 root="${1:-$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)}"
@@ -28,6 +39,10 @@ if ! command -v effigy >/dev/null 2>&1; then
 fi
 if ! command -v cargo >/dev/null 2>&1; then
     echo "[rust-quality:installed-route] missing required command: cargo" >&2
+    exit 1
+fi
+if ! command -v oxide >/dev/null 2>&1; then
+    echo "[rust-quality:installed-route] missing required command: oxide" >&2
     exit 1
 fi
 if ! command -v git >/dev/null 2>&1; then
@@ -136,8 +151,36 @@ run_capture() {
     return "$status"
 }
 
+# Oxide's permanent-drive outputs convert a fresh checkout's `target` on its
+# first leased command and need a Git work tree to do it. A real empty `target`
+# is the documented opt-out, so a throwaway copy stays unconverted while the
+# proof keeps rejecting anything but Cargo's own zero-byte lock placeholders
+# there as build output inside the package.
+prepare_unconverted_workspace() {
+    mkdir -p "$1/target"
+}
+
+require_no_build_output() {
+    workspace="$1"
+    label="$2"
+    [ -d "$workspace/target" ] || return 0
+    leaked="$(CDPATH= cd -- "$workspace/target" && find . -type f ! -name '.cargo-lock' ! -name '.cargo-artifact-lock' | sort)"
+    if [ -n "$leaked" ]; then
+        echo "[rust-quality:installed-route] $label wrote build output into the package target:" >&2
+        printf '%s\n' "$leaked" >&2
+        exit 1
+    fi
+    held="$(CDPATH= cd -- "$workspace/target" && find . -type f -size +0 | sort)"
+    if [ -n "$held" ]; then
+        echo "[rust-quality:installed-route] $label left data in a Cargo lock placeholder:" >&2
+        printf '%s\n' "$held" >&2
+        exit 1
+    fi
+}
+
 copy_package "$installed"
 installed="$(CDPATH= cd -- "$installed" && pwd -P)"
+prepare_unconverted_workspace "$installed/tools/rust-quality"
 before="$(tree_listing "$installed")"
 
 # 1. Spec-034 Canonical Package-Tree and Manifest Digest Verification (with raw-framing mutation negatives)
@@ -321,13 +364,13 @@ ADAPTED_EXPECTED = {
     'references/modes/rust-quality-authoring.md': 'sha256:8cbdc3d1abebc8793ec9294ca4d49fcef6a3410f38134ce807d89b3e90ed0943',
     'assets/templates/language-quality/rust/AGENTS.md': 'sha256:93427f1e883532ea5ca6505d84097d84725979a41f4115c1643dba1937c3c8ab',
     'assets/templates/language-quality/rust/rust-quality-profile.json': 'sha256:3f71cf96aa6561568c5864bad26d0c6e14059b04e23d91074d2c1a6032cf6018',
-    'scripts/check-rust-quality.rhai': 'sha256:77f158b770b3fdf7838c8e9775b6758ae287ec99e37b70adac09495360233d81',
+    'scripts/check-rust-quality.rhai': 'sha256:7e15fd46aa7c57798673a92c66979380aeb66533720c8b0ef673ad07afdb5eef',
     'scripts/rust-quality-setup.rhai': 'sha256:8aaf9ab95ce5344e9361183b578e1188537907aa2dc850694e9b29b93a525991',
     'tools/rust-quality/src/evidence.rs': 'sha256:3c355998759f4bfc35511031c878008f78a4373997aaabe52162c061f010c700',
     'tools/rust-quality/src/lib.rs': 'sha256:337832a0fef342aafbb81574722e73fa3afb99979d8e86313b9e753fb5960031',
     'tools/rust-quality/src/main.rs': 'sha256:ea9c2a548f057e5e7e4cdfb0e072aaa1c77a590ffc01bcdc9ce7718bf8a559b9',
     'tools/rust-quality/src/plan.rs': 'sha256:153e2185b330c68deb0cc7ca4e5e3fda7644ba07693d14f97f14a20fb86743b9',
-    'tools/rust-quality/tests/cli.rs': 'sha256:9f108a001a3e0f9fc8ed0f2e146487ad20c21f261300ceb1bdd2763b31ec69e4',
+    'tools/rust-quality/tests/cli.rs': 'sha256:3d2b2e077c52ef005b4afc72443c766f25b3e9c1b8e02566bc0a48668de823b5',
 }
 
 assert len(SOURCE_MAP) == 54, f'Expected 54 sources, got {len(SOURCE_MAP)}'
@@ -430,7 +473,9 @@ if git -C "$northstar_sibling" archive "0000000000000000000000000000000000000000
 fi
 
 ns_target="$work/ns-target"
-cargo build --manifest-path "$producer_src/rust-quality/Cargo.toml" --target-dir "$ns_target" >/dev/null 2>&1
+prepare_unconverted_workspace "$producer_src/rust-quality"
+oxide exec --manifest-path "$producer_src/rust-quality/Cargo.toml" -- \
+    cargo build --manifest-path "$producer_src/rust-quality/Cargo.toml" --target-dir "$ns_target" >/dev/null 2>&1
 producer_bin="$ns_target/debug/northstar-rust-quality"
 
 # 4. Cross-Boundary Migration and Pre-Extraction Ledger Compatibility Proof
@@ -499,7 +544,8 @@ EOF
 
 # Consumer (Installed Package Engine): validate-ledger, extend, collect, complete, finalize
 probe_target="$work/probe-target"
-cargo install --locked --offline --path "$installed/tools/rust-quality" --target-dir "$work/probe-build" --root "$probe_target" >/dev/null 2>&1
+oxide exec --manifest-path "$installed/tools/rust-quality/Cargo.toml" -- \
+    cargo install --locked --offline --path "$installed/tools/rust-quality" --target-dir "$work/probe-build" --root "$probe_target" >/dev/null 2>&1
 probe_bin="$probe_target/bin/northstar-rust-quality"
 
 "$probe_bin" validate-ledger --rules "$rules_path" --input "$compat_inputs/assess-in.json"
@@ -703,17 +749,15 @@ if [ "$before" != "$after" ]; then
     exit 1
 fi
 
-# 6. Cargo Engine Suite and Tamper Negatives
+# 6. Oxide-leased Cargo Engine Suite and Tamper Negatives
 if ! run_capture "$transcripts/cargo-test.txt" \
+    oxide exec --manifest-path "$installed/tools/rust-quality/Cargo.toml" -- \
     cargo test --manifest-path "$installed/tools/rust-quality/Cargo.toml" --target-dir "$work/engine-test-build"; then
-    echo "[rust-quality:installed-route] cargo test failed" >&2
+    echo "[rust-quality:installed-route] oxide-leased cargo test failed" >&2
     cat "$transcripts/cargo-test.txt" >&2
     exit 1
 fi
-if [ -e "$installed/tools/rust-quality/target" ]; then
-    echo "[rust-quality:installed-route] cargo wrote target/ into the installed package" >&2
-    exit 1
-fi
+require_no_build_output "$installed/tools/rust-quality" "oxide-leased engine suite"
 require_file_contains "$transcripts/cargo-test.txt" "13 passed" "unit test count"
 require_file_contains "$transcripts/cargo-test.txt" "40 passed" "cli test count"
 require_file_contains "$transcripts/cargo-test.txt" "2 passed" "detectors test count"
@@ -810,7 +854,7 @@ set --
 while IFS= read -r tool_argument; do
     set -- "$@" "$tool_argument"
 done <"$tool_build/argv.txt"
-if ! (CDPATH= cd -- "$tool_build" && "$tool_command" "$@") >"$transcripts/tool-build.txt" 2>&1; then
+if ! (CDPATH= cd -- "$tool_build" && oxide exec --manifest-path "$installed/tools/rust-quality/Cargo.toml" -- "$tool_command" "$@") >"$transcripts/tool-build.txt" 2>&1; then
     echo "[rust-quality:installed-route] declared tool build failed" >&2
     cat "$transcripts/tool-build.txt" >&2
     exit 1
@@ -831,10 +875,7 @@ if [ "$before_tool_build" != "$after_tool_build" ]; then
     echo "[rust-quality:installed-route] declared tool build changed the installed package tree" >&2
     exit 1
 fi
-if [ -e "$installed/tools/rust-quality/target" ]; then
-    echo "[rust-quality:installed-route] declared tool build wrote target/ into the installed package" >&2
-    exit 1
-fi
+require_no_build_output "$installed/tools/rust-quality" "declared tool build"
 
 # 7. Lifecycle execution proof: inspect running against consumer Git repo
 printf '\npub fn multiply(a: i32, b: i32) -> i32 { a * b }\n' >>"$consumer/src/lib.rs"
@@ -859,7 +900,7 @@ if ! run_capture "$transcripts/staged-qa.txt" \
     exit 1
 fi
 require_file_contains "$transcripts/staged-qa.txt" \
-    "declared tool recipe, 7 grammar, 1 existence, and 1 exact-command negative paths" \
+    "declared tool recipe, 7 grammar, 1 existence, 1 oxide-route, and 1 exact-command negative paths" \
     "installed-copy adapter closure check"
 
 expect_adapter_rejection() {
@@ -917,4 +958,4 @@ mv "$evil/agents/openai.yaml.next" "$evil/agents/openai.yaml"
 expect_adapter_rejection "$evil" "suffixed-command-policy" \
     "agent policy is not the declared exact-command form"
 
-echo "Rust quality installed route: OK (spec-034 canonical tree digest and mutation rejection, explicit or pinned-source Northstar resolution with plain missing-source rejection, 54-source deterministic parity and adapted mutation rejection, pinned commit 69e4d5d producer engine build and mismatched-source rejection, cross-boundary pre-extraction ledger migration and byte preservation, public skill-run setup, relay sentinel, decoy catalogue ignored, engine cargo tests and tamper rejection, probe verify-install, adapter grammar and exact-command closure enforced)"
+echo "Rust quality installed route: OK (spec-034 canonical tree digest and mutation rejection, explicit or pinned-source Northstar resolution with plain missing-source rejection, 54-source deterministic parity and adapted mutation rejection, pinned commit 69e4d5d producer engine build and mismatched-source rejection, cross-boundary pre-extraction ledger migration and byte preservation, public skill-run setup, relay sentinel, decoy catalogue ignored, Oxide-leased engine cargo tests and tamper rejection, probe verify-install, adapter grammar and exact-command closure enforced)"

@@ -23,6 +23,25 @@ impl Fixture {
         Self { root }
     }
 
+    /// The engine child for this fixture.
+    ///
+    /// Oxide exports its shared Cargo build directory to every leased command,
+    /// and a shared build directory gives two fixture crates with the same
+    /// package name and version one Cargo unit, so a passing fixture could hide
+    /// a failing one. Each fixture therefore builds into its own target
+    /// directory under `.git/`, where neither the worktree scope nor a commit
+    /// can see it.
+    fn engine(&self) -> Command {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"));
+        command
+            .env(
+                "CARGO_TARGET_DIR",
+                self.root.join(".git/northstar-test-target"),
+            )
+            .env_remove("CARGO_BUILD_BUILD_DIR");
+        command
+    }
+
     fn write(&self, relative: &str, contents: &str) {
         let path = self.root.join(relative);
         fs::create_dir_all(path.parent().expect("fixture file parent")).expect("create parent");
@@ -52,7 +71,7 @@ impl Fixture {
     }
 
     fn inspect_scope(&self, scope: &str) -> Value {
-        let output = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        let output = self.engine()
             .args(["inspect", "--repo"])
             .arg(&self.root)
             .args(["--scope", scope])
@@ -67,7 +86,7 @@ impl Fixture {
     }
 
     fn inspect_failure(&self, scope: &str) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["inspect", "--repo"])
             .arg(&self.root)
             .args(["--scope", scope])
@@ -90,7 +109,7 @@ impl Fixture {
             serde_json::to_vec(input).expect("serialize plan input"),
         )
         .expect("write plan input");
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["plan", "--discovery"])
             .arg(discovery_path)
             .args(["--input"])
@@ -127,7 +146,7 @@ impl Fixture {
             br#"{"schema_version":"1.0.0","language":"rust","deviations":[]}"#,
         )
         .expect("write deviations");
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["init", "--repo"])
             .arg(&self.root)
             .args(["--discovery"])
@@ -159,7 +178,7 @@ impl Fixture {
             serde_json::to_vec(input).expect("operation json"),
         )
         .expect("write operation input");
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .arg(operation)
             .args(["--repo"])
             .arg(&self.root)
@@ -170,7 +189,7 @@ impl Fixture {
     }
 
     fn finalize(&self, audit_id: &str) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["finalize", "--repo"])
             .arg(&self.root)
             .args(["--audit", audit_id])
@@ -197,7 +216,7 @@ impl Fixture {
             serde_json::to_vec(input).expect("closeout json"),
         )
         .expect("write closeout input");
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["closeout", "--repo"])
             .arg(&self.root)
             .args(["--input"])
@@ -208,7 +227,7 @@ impl Fixture {
     }
 
     fn inspect_committed(&self, base: &str, head: &str) -> std::process::Output {
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["inspect", "--repo"])
             .arg(&self.root)
             .args(["--scope", "committed", "--base", base, "--head", head])
@@ -251,7 +270,7 @@ impl Fixture {
             serde_json::to_vec(input).expect("serialize assessment input"),
         )
         .expect("write assessment input");
-        Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+        self.engine()
             .args(["validate-ledger", "--rules"])
             .arg(strict_projection_path())
             .args(["--input"])
@@ -561,7 +580,7 @@ fn rejects_anchorless_worktree_scope() {
     fixture.commit();
     fixture.write("README.md", "changed\n");
 
-    let output = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+    let output = fixture.engine()
         .args(["inspect", "--repo"])
         .arg(&fixture.root)
         .args(["--scope", "worktree"])
@@ -1507,7 +1526,7 @@ fn rejects_committed_ranges_that_do_not_bind_exact_bytes() {
         "scope.checkout_dirty_range",
     );
 
-    let missing = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+    let missing = fixture.engine()
         .args(["inspect", "--repo"])
         .arg(&fixture.root)
         .args(["--scope", "committed"])
@@ -1515,7 +1534,7 @@ fn rejects_committed_ranges_that_do_not_bind_exact_bytes() {
         .expect("run committed inspect");
     assert_lifecycle_error(&missing, "scope.range_required");
 
-    let unexpected = Command::new(env!("CARGO_BIN_EXE_northstar-rust-quality"))
+    let unexpected = fixture.engine()
         .args(["inspect", "--repo"])
         .arg(&fixture.root)
         .args(["--scope", "worktree", "--base", &base, "--head", &head])
