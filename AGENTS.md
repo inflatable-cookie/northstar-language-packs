@@ -12,11 +12,11 @@ a language it did not request.
 - Retired concepts, which must not come back: `docs/knowledge/retired.toml`
 - Open questions: `docs/knowledge/questions.md`
 - Tool and process friction: Queue papercuts, filed with `papercut.add` (see
-  the `northstar` skill). The repository holds no papercut file or triage folder.
+  the Nucleus skill). The repository holds no papercut file or triage folder.
 
 The plan (lanes, their documents and their order), leads, papercuts, brief
 drafts, tasks and status live in Queue, never in this repository. Read what's
-next with `plan.get` (see the `northstar` skill).
+next with `plan.get` (see the Nucleus skill).
 
 ## Commands
 
