@@ -1,5 +1,10 @@
 # Northstar Language Packs
 
+> **Retired 2026-11-18.** These packages are no longer maintained, and
+> Northstar no longer routes to them (inflatable-cookie/northstar#83). For
+> Rust, use a maintained skill such as
+> [BeautifulRust](https://github.com/morganlinton/BeautifulRust).
+
 Official optional language-quality packages for Northstar. Each package is an
 independent release, acquisition, installation, and activation unit even when
 several packages share this source repository.
